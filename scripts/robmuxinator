@@ -244,11 +244,8 @@ class LinuxHost(Host):
         logger.info("  shutting down {}...".format(self._hostname))
         cmd = "nohup sh -c '( ( sudo shutdown now -P 0 > /dev/null 2>&1 ) & )'"
         ret, _, _ = self._ssh_client.send_cmd(cmd, get_pty=True)
-        if USE_PARAMIKO:
-            exp=0
-        else:
-            exp=0
-        if ret is exp:
+
+        if ret == 0:
             end = datetime.now() + timedelta(seconds=timeout)
             while self.is_up():
                 time.sleep(0.25)
