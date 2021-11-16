@@ -9,6 +9,8 @@ import socket
 import subprocess
 import sys
 import time
+if not f"/opt/ros/myrosdistro/lib/python3/dist-packages" in sys.path:
+    sys.path.append(f"/opt/ros/myrosdistro/lib/python3/dist-packages")
 import rosgraph
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -104,8 +106,8 @@ class SSHClient:
             try:
                 self.ssh_cli = paramiko.client.SSHClient()
                 self.ssh_cli.load_system_host_keys()
-                self.ssh_cli.connect(   username=self._user, 
-                                        hostname=self._host, 
+                self.ssh_cli.connect(   username=self._user,
+                                        hostname=self._host,
                                         key_filename=key_filepath)
             except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
                 logger.error("  SSH Error: {}".format(e))
@@ -433,7 +435,7 @@ class Session(object):
     # as ros2 uses python as a launch system, it should be possible to detect this
     def start(self):
         logger.info("  session {}: start".format(self._session_name))
-        
+
         if self._wait_for_core:
             logger.info("  session {}: waiting for roscore".format(
                 self._session_name))
@@ -453,7 +455,7 @@ class Session(object):
                 if not ret:
                     break
                 time.sleep(0.25)
-                
+
             logger.info("  session {}: precondition fullfilled: {}".format(
                 self._session_name, self._pre_condition))
 
@@ -599,9 +601,9 @@ if __name__ == "__main__":
         help="which command should be executed",
     )
     parser.add_argument(
-        "-c", 
-        "--config", 
-        help="the path to the yaml config file", 
+        "-c",
+        "--config",
+        help="the path to the yaml config file",
         default="/etc/ros/cob.yaml"
     )
     parser.add_argument(
