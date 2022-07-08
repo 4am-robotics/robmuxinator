@@ -73,7 +73,7 @@ format = logging.Formatter( "[%(levelname)s] [%(asctime)s]: %(message)s")
 fileHandler.setFormatter(format)
 logger.addHandler(fileHandler)
 
-USE_PARAMIKO = False
+USE_PARAMIKO = True
 
 DEFAULT_USER = "robot"
 DEFAULT_HOST = socket.gethostname()
@@ -95,20 +95,14 @@ class SSHClient:
 
     def init_connection(self):
         if self.ssh_cli is None:
-            # set ssh key location for authentication
-            if self._user == "root" and self._sudo_user:
-                key_filepath = "/{}/.ssh/id_rsa".format(self._user)
-            elif self._sudo_user:
-                key_filepath = "/u/{}/.ssh/id_rsa".format(self._user)
-            else:
-                key_filepath = None
-
             try:
                 self.ssh_cli = paramiko.client.SSHClient()
                 self.ssh_cli.load_system_host_keys()
+                self.ssh_cli.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.ssh_cli.connect(   username=self._user,
                                         hostname=self._host,
-                                        key_filename=key_filepath)
+                                        key_filename=os.path.expanduser("~/.ssh/id_rsa")
+                                        )
             except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
                 logger.error("  SSH Error: {}".format(e))
                 raise e
