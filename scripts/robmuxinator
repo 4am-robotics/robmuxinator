@@ -98,7 +98,6 @@ class SSHClient:
             try:
                 self.ssh_cli = paramiko.client.SSHClient()
                 self.ssh_cli.load_system_host_keys()
-                self.ssh_cli.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.ssh_cli.connect(   username=self._user,
                                         hostname=self._host,
                                         key_filename=os.path.expanduser("~/.ssh/id_rsa")
