@@ -73,7 +73,14 @@ format = logging.Formatter( "[%(levelname)s] [%(asctime)s]: %(message)s")
 fileHandler.setFormatter(format)
 logger.addHandler(fileHandler)
 
+paramiko_version_major = int(paramiko.__version__.split(".")[0])
+paramiko_version_minor = int(paramiko.__version__.split(".")[1:])
+
 USE_PARAMIKO = True
+# check paramiko version to handle all ssh keys conrrectly
+if paramiko_version_major <= 2 and paramiko_version_minor < 11:
+    logger.error("Uncompatible paramiko version installed! Update to at least 2.11.")
+    exit(1)
 
 DEFAULT_USER = "robot"
 DEFAULT_HOST = socket.gethostname()
