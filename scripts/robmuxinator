@@ -621,11 +621,16 @@ if __name__ == "__main__":
             else:
                 check_nfs = True
 
+            if "hostname" in yaml_hosts[key]:
+                hostname = yaml_hosts[key]["hostname"]
+            else:
+                hostname = key
+
             if yaml_hosts[key]["os"] == "linux":
                 hosts[key] = LinuxHost(
-                    key, yaml_hosts[key]["user"], port, check_nfs)
+                    hostname, yaml_hosts[key]["user"], port, check_nfs)
             elif yaml_hosts[key]["os"] == "windows":
-                hosts[key] = WindowsHost(key, yaml_hosts[key]["user"], port)
+                hosts[key] = WindowsHost(hostname, yaml_hosts[key]["user"], port)
             else:
                 logger.error("unknown host os: {}".format(
                     yaml_hosts[key]["os"]))
