@@ -76,7 +76,6 @@ logger.addHandler(fileHandler)
 paramiko_version_major = int(paramiko.__version__.split(".")[0])
 paramiko_version_minor = int(paramiko.__version__.split(".")[1])
 
-USE_PARAMIKO = True
 # check paramiko version to handle all ssh keys conrrectly
 if paramiko_version_major <= 2 and paramiko_version_minor < 11:
     logger.error('Incompatible paramiko version installed! Update the version with \n\tsudo -H pip3 install --upgrade --force-reinstall paramiko')
@@ -115,12 +114,6 @@ class SSHClient:
                 raise e
 
     def send_cmd(self, cmd, wait_for_exit_status=True, get_pty=False):
-        if USE_PARAMIKO:
-            return self.send_cmd_paramiko(cmd, wait_for_exit_status, get_pty)
-        else:
-            return self.send_cmd_ssh(cmd, wait_for_exit_status, get_pty)
-
-    def send_cmd_paramiko(self, cmd, wait_for_exit_status=True, get_pty=False):
         start = datetime.now()
         try:
             self.init_connection()
@@ -134,17 +127,6 @@ class SSHClient:
         except Exception as e:
             logger.error("{}".format(e))
             return 1, None, None
-
-    def send_cmd_ssh(self, cmd, wait_for_exit_status=True, get_pty=False):
-        start = datetime.now()
-        cmd = "ssh {}@{} \"{}\"".format(self._user, self._host, cmd)
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        # TODO: check usage of stdout and stderr
-        stdout, stderr = process.communicate()
-        logger.debug("send_cmd: {}  took {} secs".format(
-            cmd, (datetime.now()-start).total_seconds()))
-        return process.returncode, stdout, stderr
 
     def send_keys(self, session_name, keys):
         cmd = "tmux send-keys -t {} '{}' ENTER".format(session_name, keys)
@@ -171,22 +153,15 @@ class SSHClient:
         cmd = r'tmux list-panes -s -F \"#{pane_pid}\" -t ' + session_name
         returncode, stdout, stderr = self.send_cmd(cmd)
         pid = None
+
         if not returncode:
-            if USE_PARAMIKO:
-                pid = stdout.readlines()
-                pid = pid[0].rstrip("\n") if len(pid) > 0 else None
-            else:
-                pid = stdout  # .readlines()
-                pid = pid.decode().rstrip("\n") if len(pid) > 0 else None
+            pid = stdout.readlines()
+            pid = pid[0].rstrip("\n") if len(pid) > 0 else None
             if pid:
                 cmd = "pgrep -P {}".format(pid)
                 returncode, stdout, stderr = self.send_cmd(cmd)
-                if USE_PARAMIKO:
-                    pid = stdout.readlines()
-                    pid = pid[0].rstrip("\n") if len(pid) > 0 else None
-                else:
-                    pid = stdout
-                    pid = pid.decode().rstrip("\n") if len(pid) > 0 else None
+                pid = stdout.readlines()
+                pid = pid[0].rstrip("\n") if len(pid) > 0 else None
         else:
             print(
                 Fore.RED + "  session {}: could not get pid for process".format(session_name))
