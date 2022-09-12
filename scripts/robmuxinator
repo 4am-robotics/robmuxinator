@@ -89,9 +89,9 @@ DEFAULT_PORT = None  # default port None disables port check
 class SSHClient:
     """Handle commands over ssh tunnel"""
 
-    def __init__(self, user, host):
+    def __init__(self, user, hostname):
         self._user = user
-        self._host = host
+        self._hostname = hostname
 
         # check if user has sudo privileges
         self._sudo_user = True if os.getuid() == 0 else False
@@ -105,7 +105,7 @@ class SSHClient:
                 self.ssh_cli = paramiko.client.SSHClient()
                 self.ssh_cli.load_system_host_keys()
                 self.ssh_cli.connect(   username=self._user,
-                                        hostname=self._host,
+                                        hostname=self._hostname,
                                         key_filename=os.path.expanduser("~/.ssh/id_rsa"),
                                         disabled_algorithms={"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]},
                                         )
@@ -670,12 +670,12 @@ if __name__ == "__main__":
             if args.sessions:
                 if key in args.sessions:
                     sessions.append(
-                        Session(SSHClient(user=user, host=hosts[host].get_hostname()),
+                        Session(SSHClient(user=user, hostname=hosts[host].get_hostname()),
                                 key, yaml_sessions[key])
                     )
             else:
                 sessions.append(
-                    Session(SSHClient(user=user, host=hosts[host].get_hostname()),
+                    Session(SSHClient(user=user, hostname=hosts[host].get_hostname()),
                             key, yaml_sessions[key])
                 )
     except Exception as e:
