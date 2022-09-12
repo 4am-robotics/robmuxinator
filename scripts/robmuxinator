@@ -663,17 +663,19 @@ if __name__ == "__main__":
             user = DEFAULT_USER
             if "host" in yaml_sessions[key]:
                 host = yaml_sessions[key]["host"]
+
             if "user" in yaml_sessions[key]:
                 user = yaml_sessions[key]["user"]
+
             if args.sessions:
                 if key in args.sessions:
                     sessions.append(
-                        Session(SSHClient(user=user, host=host),
+                        Session(SSHClient(user=user, host=hosts[host].get_hostname()),
                                 key, yaml_sessions[key])
                     )
             else:
                 sessions.append(
-                    Session(SSHClient(user=user, host=host),
+                    Session(SSHClient(user=user, host=hosts[host].get_hostname()),
                             key, yaml_sessions[key])
                 )
     except Exception as e:
