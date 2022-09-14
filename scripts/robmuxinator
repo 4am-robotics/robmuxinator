@@ -78,7 +78,7 @@ paramiko_version_minor = int(paramiko.__version__.split(".")[1])
 
 # check paramiko version to handle all ssh keys conrrectly
 if paramiko_version_major <= 2 and paramiko_version_minor < 11:
-    logger.error('Incompatible paramiko version installed! Update the version with \n\tsudo -H pip3 install --upgrade --force-reinstall paramiko')
+    logger.error('Incompatible paramiko version installed! Update the version with \n\tsudo -H pip3 install --upgrade "paramiko>=2.10"')
     exit(1)
 
 DEFAULT_USER = "robot"
