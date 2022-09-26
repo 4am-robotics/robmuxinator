@@ -616,13 +616,42 @@ def stop_sessions(sessions, force=False):
         )
     )
 
+def pre_shutdown_commands(yaml_content):
+    logger.info("execute pre shutdown commands")
+    if "pre-shutdown-commands" in yaml_content:
+        for cmd in yaml_content["pre-shutdown-commands"]:
+            logger.info("execute command: [{}]".format(cmd))
+            #execute cmd
+            process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            stdio, stderr = process.communicate()
+            if process.returncode != 0:
+                logger.error("failed to execute command: [{}]".format(cmd))
+                logger.error("error: {}".format(stderr))
+    else:
+        logger.info("no pre-shutdown-commands defined")
+
+def pre_reboot_commands(yaml_content):
+    logger.info("execute pre reboot commands")
+    if "pre-reboot-commands" in yaml_content:
+        for cmd in yaml_content["pre-reboot-commands"]:
+            logger.info("execute command: [{}]".format(cmd))
+            #execute cmd
+            process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            stdio, stderr = process.communicate()
+            if process.returncode != 0:
+                logger.error("failed to execute command: [{}]".format(cmd))
+                logger.error("error: {}".format(stderr))
+    else:
+        logger.info("no pre-reboot-commands defined")
 
 if __name__ == "__main__":
     start = datetime.now()
     parser = argparse.ArgumentParser(description="robmuxinator")
     parser.add_argument(
         "command",
-        choices=["start", "stop", "restart", "shutdown"],
+        choices=["start", "stop", "restart", "shutdown", "reboot"],
         help="which command should be executed",
     )
     parser.add_argument(
@@ -645,6 +674,7 @@ if __name__ == "__main__":
         action="store_true",
         help="close sessions even if they are locked",
     )
+
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
     # parse arguments
@@ -759,5 +789,11 @@ if __name__ == "__main__":
             "restart took {} secs".format((datetime.now() - start).total_seconds())
         )
     elif command == "shutdown":
+        pre_shutdown_commands(yaml_content)
+        stop_sessions(ordered_sessions, True)
+        shutdown_system(hosts)
+    elif command == "reboot":
+        pre_shutdown_commands(yaml_content)
+        pre_reboot_commands(yaml_content)
         stop_sessions(ordered_sessions, True)
         shutdown_system(hosts)
