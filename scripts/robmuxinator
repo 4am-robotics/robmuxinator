@@ -427,8 +427,9 @@ class Session(object):
                 self._session_name, self._pre_condition))
             # check for precondition
             while True:
-                ret, _, _ = self._ssh_client.send_cmd(
-                    'source /u/{}/setup/user.bashrc && {}'.format(self._user, self._pre_condition), True)
+                ret, stdout, stderr = self._ssh_client.send_cmd(
+                    "{}".format(self._pre_condition), True
+                )
                 if not ret:
                     break
                 time.sleep(0.25)
