@@ -9,6 +9,7 @@ import socket
 import subprocess
 import sys
 import time
+
 if not f"/opt/ros/noetic/lib/python3/dist-packages" in sys.path:
     sys.path.append(f"/opt/ros/noetic/lib/python3/dist-packages")
 import rosgraph
@@ -20,6 +21,7 @@ import argcomplete
 import paramiko
 import yaml
 from colorama import Fore
+
 
 class CustomFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
@@ -63,13 +65,13 @@ logger.addHandler(streamHandler)
 
 logPath = "/var/log"
 if not os.access(logPath, os.W_OK):
-    logPath = os.path.expanduser('~/log')
+    logPath = os.path.expanduser("~/log")
 if not os.path.exists(logPath):
     os.makedirs(logPath)
 logFile = "robmuxinator"
 fileHandler = RotatingFileHandler(
     "{0}/{1}.log".format(logPath, logFile), maxBytes=1024*10000, backupCount=4)
-format = logging.Formatter( "[%(levelname)s] [%(asctime)s]: %(message)s")
+format = logging.Formatter("[%(levelname)s] [%(asctime)s]: %(message)s")
 fileHandler.setFormatter(format)
 logger.addHandler(fileHandler)
 
@@ -78,7 +80,9 @@ paramiko_version_minor = int(paramiko.__version__.split(".")[1])
 
 # check paramiko version to handle all ssh keys conrrectly
 if paramiko_version_major <= 2 and paramiko_version_minor < 11:
-    logger.error('Incompatible paramiko version installed! Update the version with \n\tsudo -H pip3 install --upgrade "paramiko>=2.10"')
+    logger.error(
+        'Incompatible paramiko version installed! Update the version with \n\tsudo -H pip3 install --upgrade "paramiko>=2.10"'
+    )
     exit(1)
 
 DEFAULT_USER = "robot"
@@ -105,12 +109,16 @@ class SSHClient:
                 self.ssh_cli = paramiko.client.SSHClient()
                 self.ssh_cli.load_system_host_keys()
                 self.ssh_cli.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                self.ssh_cli.connect(   username=self._user,
-                                        hostname=self._hostname,
-                                        key_filename=os.path.expanduser("~/.ssh/id_rsa"),
-                                        disabled_algorithms={"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]},
-                                        )
-            except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
+                self.ssh_cli.connect(
+                    username=self._user,
+                    hostname=self._hostname,
+                    key_filename=os.path.expanduser("~/.ssh/id_rsa"),
+                    disabled_algorithms={"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]},
+                )
+            except (
+                paramiko.ssh_exception.SSHException,
+                paramiko.ssh_exception.NoValidConnectionsError,
+            ) as e:
                 logger.error("  SSH Error: {}".format(e))
                 raise e
 
@@ -127,8 +135,11 @@ class SSHClient:
             returncode = 0
             if wait_for_exit_status:
                 returncode = stdout.channel.recv_exit_status()
-            logger.debug("send_cmd: {}  took {} secs".format(
-                cmd, (datetime.now()-start).total_seconds()))
+            logger.debug(
+                "send_cmd: {}  took {} secs".format(
+                    cmd, (datetime.now() - start).total_seconds()
+                )
+            )
             return returncode, stdout, stderr
         except Exception as e:
             logger.error("{}".format(e))
@@ -140,23 +151,23 @@ class SSHClient:
         return not returncode
 
     def has_session(self, session_name):
-        cmd = 'tmux has-session -t {}'.format(session_name)
+        cmd = "tmux has-session -t {}".format(session_name)
         returncode, stdout, stderr = self.send_cmd(cmd)
         return not returncode
 
     def new_session(self, session_name):
-        cmd = 'tmux new -d -s {}'.format(session_name)
+        cmd = "tmux new -d -s {}".format(session_name)
         returncode, stdout, stderr = self.send_cmd(cmd)
         return not returncode
 
     def kill_session(self, session_name):
-        cmd = 'tmux kill-session -t {}'.format(session_name)
+        cmd = "tmux kill-session -t {}".format(session_name)
         returncode, stdout, stderr = self.send_cmd(cmd)
         return not returncode
 
     def stop_session(self, session_name):
         # get pid
-        cmd = r'tmux list-panes -s -F \"#{pane_pid}\" -t ' + session_name
+        cmd = r"tmux list-panes -s -F \"#{pane_pid}\" -t " + session_name
         returncode, stdout, stderr = self.send_cmd(cmd)
         pid = None
 
@@ -170,7 +181,9 @@ class SSHClient:
                 pid = pid[0].rstrip("\n") if len(pid) > 0 else None
         else:
             print(
-                Fore.RED + "  session {}: could not get pid for process".format(session_name))
+                Fore.RED
+                + "  session {}: could not get pid for process".format(session_name)
+            )
 
         cmd = "tmux send -t {} C-c".format(session_name)
 
@@ -178,8 +191,11 @@ class SSHClient:
 
         if pid:
             cmd = "ps -p {} > /dev/null".format(pid)
-            logger.info("  session {}: waiting 30 sec for process with pid {} to stop".format(
-                session_name, pid))
+            logger.info(
+                "  session {}: waiting 30 sec for process with pid {} to stop".format(
+                    session_name, pid
+                )
+            )
             end = datetime.now() + timedelta(seconds=30)
             while datetime.now() < end:
                 returncode, stdout, stderr = self.send_cmd(cmd)
@@ -206,9 +222,10 @@ class Host(object):
     def is_up(self):
         cmd = "ping -c 1 {} > /dev/null".format(self._hostname)
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
         # TODO: check usage of stdout and stderr
-        _, _ = process.communicate()
+        stdout_data, stderr_data = process.communicate()
         return not process.returncode
 
     def wait_for_host(self, timeout=30):
@@ -227,7 +244,7 @@ class LinuxHost(Host):
     def shutdown(self, timeout=60):
         logger.info("  shutting down {}...".format(self._hostname))
         cmd = "nohup sh -c '( ( sudo shutdown now -P 0 > /dev/null 2>&1 ) & )'"
-        ret, _, _ = self._ssh_client.send_cmd(cmd, get_pty=True)
+        ret, stdout, stderr = self._ssh_client.send_cmd(cmd, get_pty=True)
 
         if ret == 0:
             end = datetime.now() + timedelta(seconds=timeout)
@@ -236,13 +253,13 @@ class LinuxHost(Host):
                 if datetime.now() > end:
                     logger.error(
                         "  could not shutdown '{}' within {} secs".format(
-                            self._hostname, timeout)
+                            self._hostname, timeout
+                        )
                     )
                     return False
         else:
             logger.error(
-                "  could not exec shutdown command on '{}'".format(
-                    self._hostname)
+                "  could not exec shutdown command on '{}'".format(self._hostname)
             )
             return False
 
@@ -252,8 +269,9 @@ class LinuxHost(Host):
     def check_nfs_mount(self):
         cmd = "netstat | grep :nfs | grep {}".format(self._hostname)
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        _, _ = process.communicate()
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
+        stdout_data, stderr_data = process.communicate()
         return not process.returncode
 
     def wait_for_host(self, timeout=30):
@@ -264,25 +282,27 @@ class LinuxHost(Host):
             if datetime.now() > end:
                 logger.error(
                     "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout)
+                        self._hostname, timeout
+                    )
                 )
                 return False
         if self._port:
             while True:
                 try:
-                    socket.create_connection(
-                        (self._hostname, self._port), timeout=1)
+                    socket.create_connection((self._hostname, self._port), timeout=1)
                     break
                 except OSError as ex:
                     logger.debug(
                         "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex)
+                            self._hostname, self._port, timeout, ex
+                        )
                     )
                 time.sleep(0.25)
                 if datetime.now() > end:
                     logger.error(
                         "  could not connect to '{}:{}' within {} secs".format(
-                            self._hostname, self._port, timeout)
+                            self._hostname, self._port, timeout
+                        )
                     )
                     return False
 
@@ -292,7 +312,8 @@ class LinuxHost(Host):
                 if datetime.now() > end:
                     logger.error(
                         "  could not find nfs mount for '{}' within {} secs".format(
-                            self._hostname, timeout)
+                            self._hostname, timeout
+                        )
                     )
                     return False
 
@@ -311,13 +332,14 @@ class WindowsHost(Host):
 
     def shutdown(self, timeout=60):
         logger.info("  shutting down {}...".format(self._hostname))
-        cmd = 'net rpc shutdown -f -t 1 -I {host} -U rpc_user%rpc_user'.format(
+        cmd = "net rpc shutdown -f -t 1 -I {host} -U rpc_user%rpc_user".format(
             host=self._hostname
         )
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
         # TODO: check usage of stdout and stderr
-        _, _ = process.communicate()
+        stdout_data, stderr_data = process.communicate()
         if not process.returncode:
             end = datetime.now() + timedelta(seconds=timeout)
             while self.is_up():
@@ -325,13 +347,13 @@ class WindowsHost(Host):
                 if datetime.now() > end:
                     logger.error(
                         "  could not shutdown '{}' within {} secs".format(
-                            self._hostname, timeout)
+                            self._hostname, timeout
+                        )
                     )
                     return False
         else:
             logger.error(
-                "  could not exec shutdown command on '{}'".format(
-                    self._hostname)
+                "  could not exec shutdown command on '{}'".format(self._hostname)
             )
             return False
 
@@ -346,25 +368,27 @@ class WindowsHost(Host):
             if datetime.now() > end:
                 logger.error(
                     "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout)
+                        self._hostname, timeout
+                    )
                 )
                 return False
         if self._port:
             while True:
                 try:
-                    socket.create_connection(
-                        (self._hostname, self._port), timeout=1)
+                    socket.create_connection((self._hostname, self._port), timeout=1)
                     break
                 except OSError as ex:
                     logger.debug(
                         "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex)
+                            self._hostname, self._port, timeout, ex
+                        )
                     )
                 time.sleep(0.25)
                 if datetime.now() > end:
                     logger.error(
                         "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex)
+                            self._hostname, self._port, timeout, ex
+                        )
                     )
                     return False
 
@@ -419,17 +443,20 @@ class Session(object):
         logger.info("  session {}: start".format(self._session_name))
 
         if self._wait_for_core:
-            logger.info("  session {}: waiting for roscore".format(
-                self._session_name))
+            logger.info("  session {}: waiting for roscore".format(self._session_name))
             # wait for roscore
             while not rosgraph.is_master_online():
                 time.sleep(0.25)
-                logger.debug("  session {}: waiting for roscore!".format(
-                    self._session_name))
+                logger.debug(
+                    "  session {}: waiting for roscore!".format(self._session_name)
+                )
 
         if self._pre_condition:
-            logger.info("  session {}: checking precondition: {}".format(
-                self._session_name, self._pre_condition))
+            logger.info(
+                "  session {}: checking precondition: {}".format(
+                    self._session_name, self._pre_condition
+                )
+            )
             # check for precondition
             while True:
                 ret, stdout, stderr = self._ssh_client.send_cmd(
@@ -439,12 +466,14 @@ class Session(object):
                     break
                 time.sleep(0.25)
 
-            logger.info("  session {}: precondition fullfilled: {}".format(
-                self._session_name, self._pre_condition))
+            logger.info(
+                "  session {}: precondition fullfilled: {}".format(
+                    self._session_name, self._pre_condition
+                )
+            )
 
         if self._ssh_client.has_session(session_name=self._session_name):
-            logger.warning(
-                "  session {}: already running".format(self._session_name))
+            logger.warning("  session {}: already running".format(self._session_name))
         else:
             self._ssh_client.new_session(session_name=self._session_name)
             self._ssh_client.send_keys(self._session_name, self._command)
@@ -454,17 +483,12 @@ class Session(object):
         if self._ssh_client.has_session(session_name=self._session_name):
             if self._locked and not force:
                 logger.warning(
-                    "  session {}: is locked - skipping...".format(
-                        self._session_name)
-
+                    "  session {}: is locked - skipping...".format(self._session_name)
                 )
                 return
             self._ssh_client.stop_session(session_name=self._session_name)
         else:
-            logger.warning(
-                "  session {}: not running".format(self._session_name)
-
-            )
+            logger.warning("  session {}: not running".format(self._session_name))
 
     def restart(self):
         self.stop()
@@ -494,8 +518,9 @@ def wait_for_hosts(hosts, timeout=30):
     # remove own host pc from list
     hosts_c.pop(socket.gethostname(), None)
     with ThreadPoolExecutor(max_workers=len(hosts_c)) as executor:
-        futures = {executor.submit(
-            hosts_c[key].wait_for_host, timeout): key for key in hosts_c}
+        futures = {
+            executor.submit(hosts_c[key].wait_for_host, timeout): key for key in hosts_c
+        }
 
         for f in concurrent.futures.as_completed(futures):
             ret = ret and f.result()
@@ -504,8 +529,11 @@ def wait_for_hosts(hosts, timeout=30):
     else:
         logger.error("could not reach all hosts")
 
-    logger.debug("waiting for hosts took {} secs".format(
-        (datetime.now() - start).total_seconds()))
+    logger.debug(
+        "waiting for hosts took {} secs".format(
+            (datetime.now() - start).total_seconds()
+        )
+    )
     return ret
 
 
@@ -517,15 +545,17 @@ def shutdown_system(hosts, timeout=60):
     hosts_c = copy.deepcopy(hosts)
     hosts_c.pop(socket.gethostname(), None)
     with ThreadPoolExecutor(max_workers=len(hosts)) as executor:
-        futures = {executor.submit(
-            hosts_c[key].shutdown, timeout): key for key in hosts_c}
+        futures = {
+            executor.submit(hosts_c[key].shutdown, timeout): key for key in hosts_c
+        }
 
         for f in concurrent.futures.as_completed(futures):
             f.result()
 
     hosts[socket.gethostname()].shutdown(timeout=timeout)
-    logger.debug("shutting down took {} secs".format(
-        (datetime.now() - start).total_seconds()))
+    logger.debug(
+        "shutting down took {} secs".format((datetime.now() - start).total_seconds())
+    )
 
 
 def order_sessions_by_key(sessions, key):
@@ -550,11 +580,17 @@ def start_sessions(sessions):
             futures = {executor.submit(s.start): s for s in sessions[prio]}
             for f in concurrent.futures.as_completed(futures):
                 f.result()
-        logger.info("sessions with prio {} started in {} secs".format(
-            prio, (datetime.now() - start).seconds))
+        logger.info(
+            "sessions with prio {} started in {} secs".format(
+                prio, (datetime.now() - start).seconds
+            )
+        )
         logger.info("done")
-    logger.debug("starting sessions took {} secs".format(
-        (datetime.now() - start).total_seconds()))
+    logger.debug(
+        "starting sessions took {} secs".format(
+            (datetime.now() - start).total_seconds()
+        )
+    )
 
 
 def stop_sessions(sessions, force=False):
@@ -568,11 +604,17 @@ def stop_sessions(sessions, force=False):
             futures = {executor.submit(s.stop, force): s for s in sessions[prio]}
             for f in concurrent.futures.as_completed(futures):
                 f.result()
-        logger.info("sessions with prio {} stopped in {} secs".format(
-            prio, (datetime.now() - start).seconds))
+        logger.info(
+            "sessions with prio {} stopped in {} secs".format(
+                prio, (datetime.now() - start).seconds
+            )
+        )
         logger.info("done")
-    logger.debug("stopping sessions took {} secs".format(
-        (datetime.now() - start).total_seconds()))
+    logger.debug(
+        "stopping sessions took {} secs".format(
+            (datetime.now() - start).total_seconds()
+        )
+    )
 
 
 if __name__ == "__main__":
@@ -587,7 +629,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         help="the path to the yaml config file",
-        default="/etc/ros/cob.yaml"
+        default="/etc/ros/cob.yaml",
     )
     parser.add_argument(
         "-s",
@@ -635,12 +677,12 @@ if __name__ == "__main__":
 
             if yaml_hosts[key]["os"] == "linux":
                 hosts[key] = LinuxHost(
-                    hostname, yaml_hosts[key]["user"], port, check_nfs)
+                    hostname, yaml_hosts[key]["user"], port, check_nfs
+                )
             elif yaml_hosts[key]["os"] == "windows":
                 hosts[key] = WindowsHost(hostname, yaml_hosts[key]["user"], port)
             else:
-                logger.error("unknown host os: {}".format(
-                    yaml_hosts[key]["os"]))
+                logger.error("unknown host os: {}".format(yaml_hosts[key]["os"]))
                 sys.exit(1)
 
     else:
@@ -677,13 +719,19 @@ if __name__ == "__main__":
             if args.sessions:
                 if key in args.sessions:
                     sessions.append(
-                        Session(SSHClient(user=user, hostname=hosts[host].get_hostname()),
-                                key, yaml_sessions[key])
+                        Session(
+                            SSHClient(user=user, hostname=hosts[host].get_hostname()),
+                            key,
+                            yaml_sessions[key],
+                        )
                     )
             else:
                 sessions.append(
-                    Session(SSHClient(user=user, hostname=hosts[host].get_hostname()),
-                            key, yaml_sessions[key])
+                    Session(
+                        SSHClient(user=user, hostname=hosts[host].get_hostname()),
+                        key,
+                        yaml_sessions[key],
+                    )
                 )
     except Exception as e:
         logger.error(e)
@@ -696,17 +744,20 @@ if __name__ == "__main__":
         if len(hosts) > 1 and not wait_for_hosts(hosts, timeout):
             sys.exit()
         start_sessions(ordered_sessions)
-        logger.info("starting took {} secs".format(
-            (datetime.now() - start).total_seconds()))
+        logger.info(
+            "starting took {} secs".format((datetime.now() - start).total_seconds())
+        )
     elif command == "stop":
         stop_sessions(ordered_sessions, args.force)
-        logger.info("stopping took {} secs".format(
-            (datetime.now() - start).total_seconds()))
+        logger.info(
+            "stopping took {} secs".format((datetime.now() - start).total_seconds())
+        )
     elif command == "restart":
         stop_sessions(ordered_sessions, args.force)
         start_sessions(ordered_sessions)
-        logger.info("restart took {} secs".format(
-            (datetime.now() - start).total_seconds()))
+        logger.info(
+            "restart took {} secs".format((datetime.now() - start).total_seconds())
+        )
     elif command == "shutdown":
         stop_sessions(ordered_sessions, True)
         shutdown_system(hosts)
