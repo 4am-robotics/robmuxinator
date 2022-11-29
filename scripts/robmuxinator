@@ -9,10 +9,8 @@ import socket
 import subprocess
 import sys
 import time
+import xmlrpc.client
 
-if not f"/opt/ros/noetic/lib/python3/dist-packages" in sys.path:
-    sys.path.append(f"/opt/ros/noetic/lib/python3/dist-packages")
-import rosgraph
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
@@ -21,6 +19,37 @@ import argcomplete
 import paramiko
 import yaml
 from colorama import Fore
+
+
+def is_master_online(master_uri=None):
+    """
+    @param master_uri: (optional) override environment's ROS_MASTER_URI
+    @type  master_uri: str
+    @return: True if Master is available
+    """
+
+    # taken from here, but without needing full ros dependency
+    # https://github.com/ros/ros_comm/blob/f5fa3a168760d62e9693f10dcb9adfffc6132d22/tools/rosgraph/src/rosgraph/masterapi.py#L74-L80
+
+    DEFAULT_MASTER_PORT = 11311  # default port for master's to bind to
+    DEFAULT_MASTER_URI = 'http://localhost:%s/' % DEFAULT_MASTER_PORT
+
+    if master_uri is None:
+        master_uri = os.getenv("ROS_MASTER_URI", DEFAULT_MASTER_URI)
+
+    # doesn't support ROS namespaces
+    caller_id = "robmuxinator"
+
+    handle = xmlrpc.client.ServerProxy(master_uri)
+
+    try:
+        code, msg, val = handle.getPid(caller_id)
+        if code == 1:
+            return True
+        else:
+            return False
+    except:
+        return False
 
 
 class CustomFormatter(logging.Formatter):
@@ -445,7 +474,7 @@ class Session(object):
         if self._wait_for_core:
             logger.info("  session {}: waiting for roscore".format(self._session_name))
             # wait for roscore
-            while not rosgraph.is_master_online():
+            while not is_master_online():
                 time.sleep(0.25)
                 logger.debug(
                     "  session {}: waiting for roscore!".format(self._session_name)
