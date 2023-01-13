@@ -478,6 +478,7 @@ class Session(object):
                 logger.debug(
                     "  session {}: waiting for roscore!".format(self._session_name)
                 )
+        logger.info("  session {}: roscore online".format(self._session_name))
 
         if self._pre_condition:
             logger.info(
