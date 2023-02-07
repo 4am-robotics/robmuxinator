@@ -747,12 +747,18 @@ if __name__ == "__main__":
             else:
                 hostname = key
 
+            user = yaml_hosts[key]["user"]
+            if user.startswith("$"):
+                user = os.getenv(user[1:])
+                if user is None:
+                    raise Exception("User variable for host '{}' not set".format(key))
+
             if yaml_hosts[key]["os"] == "linux":
                 hosts[key] = LinuxHost(
-                    hostname, yaml_hosts[key]["user"], port, check_nfs
+                    hostname, user, port, check_nfs
                 )
             elif yaml_hosts[key]["os"] == "windows":
-                hosts[key] = WindowsHost(hostname, yaml_hosts[key]["user"], port)
+                hosts[key] = WindowsHost(hostname, user, port)
             else:
                 logger.error("unknown host os: {}".format(yaml_hosts[key]["os"]))
                 sys.exit(1)
@@ -787,6 +793,10 @@ if __name__ == "__main__":
 
             if "user" in yaml_sessions[key]:
                 user = yaml_sessions[key]["user"]
+                if user.startswith("$"):
+                    user = os.getenv(user[1:])
+                    if user is None:
+                        raise Exception("User variable for session '{}' not set".format(key))
 
             if args.sessions:
                 if key in args.sessions:
