@@ -149,6 +149,11 @@ class SSHClient:
             ) as e:
                 logger.error("  SSH Error: {}".format(e))
                 raise e
+            except ValueError as ve:
+                if str(ve).startswith("q must be exactly"):
+                    raise Exception("  Check the correctness of SSH key for user '{}' on host '{}'".format(self._user, self._hostname))
+                else:
+                    raise ve
 
     def send_cmd(self, cmd, wait_for_exit_status=True, get_pty=False):
         start = datetime.now()
