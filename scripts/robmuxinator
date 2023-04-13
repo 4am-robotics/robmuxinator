@@ -848,9 +848,9 @@ if __name__ == "__main__":
     elif command == "shutdown":
         pre_shutdown_commands(yaml_content)
         stop_sessions(ordered_sessions, True)
-        shutdown_system(hosts)
+        shutdown_system(hosts, timeout)
     elif command == "reboot":
         pre_reboot_commands(yaml_content)
         pre_shutdown_commands(yaml_content)
         stop_sessions(ordered_sessions, True)
-        shutdown_system(hosts)
+        shutdown_system(hosts, timeout)
