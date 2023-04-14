@@ -583,22 +583,21 @@ def shutdown_system(hosts, timeout=60):
 
     # remove own host pc from list
     hosts_c = {key: value for key, value in hosts.items() if value.get_hostname() != socket.gethostname()}
-    if not hosts_c:
+    if hosts_c:
+        # concurrently shutdown all other hosts
+        with ThreadPoolExecutor(max_workers=len(hosts_c)) as executor:
+            futures = {
+                executor.submit(hosts_c[key].shutdown, timeout): key for key in hosts_c
+            }
+
+            for f in concurrent.futures.as_completed(futures):
+                f.result()
+
+        logger.debug(
+            "shutting down other hosts took {} secs".format((datetime.now() - start).total_seconds())
+        )
+    else:
         logger.info("no other hosts specified.")
-        return
-
-    # concurrently shutdown all other hosts
-    with ThreadPoolExecutor(max_workers=len(hosts_c)) as executor:
-        futures = {
-            executor.submit(hosts_c[key].shutdown, timeout): key for key in hosts_c
-        }
-
-        for f in concurrent.futures.as_completed(futures):
-            f.result()
-
-    logger.debug(
-        "shutting down other hosts took {} secs".format((datetime.now() - start).total_seconds())
-    )
 
     # shutdown own host
     host = None
