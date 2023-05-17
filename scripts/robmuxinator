@@ -429,6 +429,32 @@ class WindowsHost(Host):
         return True
 
 
+class OnlineHost(Host):
+    """Handle hosts which should only be available on the network"""
+
+    def __init__(self, hostname):
+        super().__init__(hostname, "")
+
+    def shutdown(self, timeout=60):
+        return True
+
+    def wait_for_host(self, timeout=30):
+        logger.info("  waiting for {}...".format(self._hostname))
+        end = datetime.now() + timedelta(seconds=timeout)
+        while not self.is_up():
+            time.sleep(0.25)
+            if datetime.now() > end:
+                logger.error(
+                    "  could not ping '{}' within {} secs".format(
+                        self._hostname, timeout
+                    )
+                )
+                return False
+
+        logger.info("  {} is up".format(self._hostname))
+        return True
+
+
 class Session(object):
     def __init__(self, ssh_client, session_name, yaml) -> None:
         self._session_name = session_name
@@ -760,18 +786,22 @@ if __name__ == "__main__":
             else:
                 hostname = key
 
-            user = yaml_hosts[key]["user"]
-            if user.startswith("$"):
-                user = os.getenv(user[1:])
-                if user is None:
-                    raise Exception("User variable for host '{}' not set".format(key))
+            if yaml_hosts[key]["os"].lower().strip() in ["linux", "windows"]:
+                user = yaml_hosts[key]["user"]
+                if user.startswith("$"):
+                    user = os.getenv(user[1:])
+                    if user is None:
+                        raise Exception("User variable for host '{}' not set".format(key))
 
-            if yaml_hosts[key]["os"] == "linux":
-                hosts[key] = LinuxHost(
-                    hostname, user, port, check_nfs
-                )
-            elif yaml_hosts[key]["os"] == "windows":
-                hosts[key] = WindowsHost(hostname, user, port)
+                if yaml_hosts[key]["os"].lower().strip() == "linux":
+                    hosts[key] = LinuxHost(
+                        hostname, user, port, check_nfs
+                    )
+                elif yaml_hosts[key]["os"].lower().strip() == "windows":
+                    hosts[key] = WindowsHost(hostname, user, port)
+
+            elif yaml_hosts[key]["os"].lower().strip() == "online":
+                hosts[key] = OnlineHost(hostname)
             else:
                 logger.error("unknown host os: {}".format(yaml_hosts[key]["os"]))
                 sys.exit(1)
