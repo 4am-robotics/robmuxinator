@@ -727,20 +727,16 @@ def pre_reboot_commands(yaml_content):
     else:
         logger.info("no pre-reboot-commands defined")
 
-def validate_yaml(yaml_sessions):
-    #validate sessions names -> no session name is a prefix of another session name
-    sessions_names = []
-    for key in yaml_sessions:
-        sessions_names.append(key)
-    sessions_names_sorted = sorted(sessions_names, key=len)
-    for i in range(len(sessions_names_sorted)-1):
-        for j in range(i+1, len(sessions_names_sorted)):
-            if sessions_names_sorted[j].find(sessions_names_sorted[i]) == 0:
-                print(sessions_names_sorted, i, sessions_names_sorted[i], j, sessions_names_sorted[j])
-                logger.error('sessions names in yaml are not valid')
-                logger.error('a session name is not allowed to be a prefix of another session name')
-                logger.error('catched sessions: {}, {}'.format(sessions_names_sorted[i], sessions_names_sorted[j]))
-                exit(1)
+def validate_yaml_sessions(yaml_sessions):
+    #validate session names -> no session name is a prefix of another session name
+    session_names = list(yaml_sessions.keys())
+    session_names_sorted = sorted(session_names)
+    for i in range(1, len(session_names_sorted)):
+        if session_names_sorted[i].startswith(session_names_sorted[i-1]):
+            logger.error('session names in yaml are not valid')
+            logger.error('a session name is not allowed to be a prefix of another session name')
+            logger.error('catched sessions: {}, {}'.format(session_names_sorted[i-1], session_names_sorted[i]))
+            sys.exit(1)
 
 if __name__ == "__main__":
     start = datetime.now()
@@ -840,8 +836,8 @@ if __name__ == "__main__":
         logger.error("{} does not contain key 'sessions'".format(yaml_file))
         sys.exit()
 
-    # validate yaml
-    validate_yaml(yaml_sessions)
+    # validate yaml sessions
+    validate_yaml_sessions(yaml_sessions)
 
     # init sessions
     sessions = []
