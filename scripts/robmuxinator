@@ -456,9 +456,10 @@ class OnlineHost(Host):
 
 
 class Session(object):
-    def __init__(self, ssh_client, session_name, yaml) -> None:
+    def __init__(self, ssh_client, session_name, yaml, env_vars=None) -> None:
         self._session_name = session_name
         self._ssh_client = ssh_client  # type: SSHClient
+        self._env_vars = env_vars
 
         if "user" in yaml:
             self._user = yaml["user"]
@@ -474,6 +475,15 @@ class Session(object):
             self._command = yaml["command"]
         else:
             raise Exception("No command in session section")
+        
+        if self._env_vars:
+            if self.validate_env_vars():
+                for env_var in self._env_vars:
+                    self._command += " && "
+                    self._command += env_var
+            else:
+                logger.error("environment variables must be in the form <var_name>=<value>")
+                sys.exit(1)
 
         if "wait_for_core" in yaml:
             self._wait_for_core = yaml["wait_for_core"]
@@ -566,6 +576,13 @@ class Session(object):
         print("\tprio: {}".format(self.prio))
         print("\tlocked: {}".format(self._locked))
 
+    def validate_env_vars(self):
+        env_vars_valid = True
+        for env_var in self._env_vars:
+            if len(env_var.split("=")) != 2:
+                env_vars_valid = False
+                break
+        return env_vars_valid
 
 def wait_for_hosts(hosts, timeout=30):
     start = datetime.now()
@@ -766,12 +783,21 @@ if __name__ == "__main__":
         action="store_true",
         help="close sessions even if they are locked",
     )
+    parser.add_argument(
+        "-e",
+        "--env_vars",
+        required=False,
+        action="append",
+        help="set environment variables",
+        default=None
+    )
 
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
     # parse arguments
     yaml_file = args.config
     command = args.command
+    env_vars = args.env_vars
 
     # load yaml file
     with open(yaml_file, "r") as fs:
@@ -861,6 +887,7 @@ if __name__ == "__main__":
                             SSHClient(user=user, hostname=hosts[host].get_hostname()),
                             key,
                             yaml_sessions[key],
+                            env_vars
                         )
                     )
             else:
@@ -869,6 +896,7 @@ if __name__ == "__main__":
                         SSHClient(user=user, hostname=hosts[host].get_hostname()),
                         key,
                         yaml_sessions[key],
+                        env_vars
                     )
                 )
     except Exception as e:
