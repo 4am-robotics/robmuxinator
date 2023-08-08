@@ -733,9 +733,9 @@ def validate_yaml_sessions(yaml_sessions):
     session_names_sorted = sorted(session_names)
     for i in range(1, len(session_names_sorted)):
         if session_names_sorted[i].startswith(session_names_sorted[i-1]):
-            logger.error('session names in yaml are not valid')
-            logger.error('a session name is not allowed to be a prefix of another session name')
-            logger.error('catched sessions: {}, {}'.format(session_names_sorted[i-1], session_names_sorted[i]))
+            logger.error("session names in yaml are not valid")
+            logger.error("a session name is not allowed to be a prefix of another session name")
+            logger.error("catched sessions: {}, {}".format(session_names_sorted[i-1], session_names_sorted[i]))
             sys.exit(1)
 
 if __name__ == "__main__":
@@ -837,7 +837,8 @@ if __name__ == "__main__":
         sys.exit()
 
     # validate yaml sessions
-    validate_yaml_sessions(yaml_sessions)
+    if "sessions" in yaml_content:
+        validate_yaml_sessions(yaml_sessions)
 
     # init sessions
     sessions = []
