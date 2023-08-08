@@ -832,13 +832,11 @@ if __name__ == "__main__":
     yaml_sessions = None
     if "sessions" in yaml_content:
         yaml_sessions = yaml_content["sessions"]
+        # validate yaml sessions
+        validate_yaml_sessions(yaml_sessions)
     else:
         logger.error("{} does not contain key 'sessions'".format(yaml_file))
         sys.exit()
-
-    # validate yaml sessions
-    if "sessions" in yaml_content:
-        validate_yaml_sessions(yaml_sessions)
 
     # init sessions
     sessions = []
