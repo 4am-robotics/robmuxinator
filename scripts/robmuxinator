@@ -470,15 +470,16 @@ class Session(object):
             self._host = yaml["host"]
         else:
             self._host = DEFAULT_HOST
-
+    
+        command_env_prefix = ""
+        if self._envs is not None:
+            for env in self._envs:
+                command_env_prefix += "export {}={} && ".format(env[0], env[1])
+        
         if "command" in yaml:
-            self._command = yaml["command"]
+            self._command = command_env_prefix + yaml["command"]
         else:
             raise Exception("No command in session section")
-        
-        if self._envs:
-            for env in envs:
-                self._command += " && {}={}".format(env[0], env[1])
 
         if "wait_for_core" in yaml:
             self._wait_for_core = yaml["wait_for_core"]
@@ -834,14 +835,15 @@ if __name__ == "__main__":
     # get env_vars from yaml
     if "envs" in yaml_content:
         env_vars = yaml_content["envs"]
+        env_vars_filtered = []
         env_values = []
         for env_var in env_vars:
             if os.getenv(env_var) is None:
-                env_vars.remove(env_var)
                 logger.warning("mandatory env variable {} is not set".format(env_var))
             else:
+                env_vars_filtered.append(env_var)
                 env_values.append(os.getenv(env_var))
-        envs = list(zip(env_vars, env_values))
+        envs = list(zip(env_vars_filtered, env_values))
     else:
         envs = None
 
