@@ -456,10 +456,10 @@ class OnlineHost(Host):
 
 
 class Session(object):
-    def __init__(self, ssh_client, session_name, yaml, env_vars=None) -> None:
+    def __init__(self, ssh_client, session_name, yaml, envs=None) -> None:
         self._session_name = session_name
         self._ssh_client = ssh_client  # type: SSHClient
-        self._env_vars = env_vars
+        self._envs = envs
 
         if "user" in yaml:
             self._user = yaml["user"]
@@ -476,14 +476,9 @@ class Session(object):
         else:
             raise Exception("No command in session section")
         
-        if self._env_vars:
-            if self.validate_env_vars():
-                for env_var in self._env_vars:
-                    self._command += " && "
-                    self._command += env_var
-            else:
-                logger.error("environment variables must be in the form <var_name>=<value>")
-                sys.exit(1)
+        if self._envs:
+            for env in envs:
+                self._command += " && {}={}".format(env[0], env[1])
 
         if "wait_for_core" in yaml:
             self._wait_for_core = yaml["wait_for_core"]
@@ -576,14 +571,6 @@ class Session(object):
         print("\tprio: {}".format(self.prio))
         print("\tlocked: {}".format(self._locked))
 
-    def validate_env_vars(self):
-        env_vars_valid = True
-        for env_var in self._env_vars:
-            if len(env_var.split("=")) != 2:
-                env_vars_valid = False
-                break
-        return env_vars_valid
-
 def wait_for_hosts(hosts, timeout=30):
     start = datetime.now()
     logger.info("==================================")
@@ -663,7 +650,6 @@ def order_sessions_by_key(sessions, key):
         ordered_sessions[s.prio].append(s)
     # returns a dict of arrays with prio as key and array of session with the same key(prio) as value
     return ordered_sessions
-
 
 def start_sessions(sessions):
     start = datetime.now()
@@ -783,21 +769,12 @@ if __name__ == "__main__":
         action="store_true",
         help="close sessions even if they are locked",
     )
-    parser.add_argument(
-        "-e",
-        "--env_vars",
-        required=False,
-        action="append",
-        help="set environment variables",
-        default=None
-    )
 
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
     # parse arguments
     yaml_file = args.config
     command = args.command
-    env_vars = args.env_vars
 
     # load yaml file
     with open(yaml_file, "r") as fs:
@@ -854,6 +831,20 @@ if __name__ == "__main__":
         logger.error("{} does not contain key 'timeout'".format(yaml_file))
         sys.exit()
 
+    # get env_vars from yaml
+    if "envs" in yaml_content:
+        env_vars = yaml_content["envs"]
+        env_values = []
+        for env_var in env_vars:
+            if os.getenv(env_var) is None:
+                env_vars.remove(env_var)
+                logger.warning("mandatory env variable {} is not set".format(env_var))
+            else:
+                env_values.append(os.getenv(env_var))
+        envs = list(zip(env_vars, env_values))
+    else:
+        envs = None
+
     # get sessions from yaml
     yaml_sessions = None
     if "sessions" in yaml_content:
@@ -887,7 +878,7 @@ if __name__ == "__main__":
                             SSHClient(user=user, hostname=hosts[host].get_hostname()),
                             key,
                             yaml_sessions[key],
-                            env_vars
+                            envs
                         )
                     )
             else:
@@ -896,7 +887,7 @@ if __name__ == "__main__":
                         SSHClient(user=user, hostname=hosts[host].get_hostname()),
                         key,
                         yaml_sessions[key],
-                        env_vars
+                        envs
                     )
                 )
     except Exception as e:
