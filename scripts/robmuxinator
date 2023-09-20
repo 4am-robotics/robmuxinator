@@ -470,12 +470,12 @@ class Session(object):
             self._host = yaml["host"]
         else:
             self._host = DEFAULT_HOST
-    
+
         command_env_prefix = ""
         if self._envs is not None:
             for env in self._envs:
                 command_env_prefix += "export {}={} && ".format(env[0], env[1])
-        
+
         if "command" in yaml:
             self._command = command_env_prefix + yaml["command"]
         else:
@@ -839,7 +839,7 @@ if __name__ == "__main__":
         env_values = []
         for env_var in env_vars:
             if os.getenv(env_var) is None:
-                logger.warning("mandatory env variable {} is not set".format(env_var))
+                raise Exception("mandatory env variable {} is not exported".format(env_var))
             else:
                 env_vars_filtered.append(env_var)
                 env_values.append(os.getenv(env_var))
