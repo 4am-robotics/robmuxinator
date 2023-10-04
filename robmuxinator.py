@@ -742,7 +742,7 @@ def validate_yaml_sessions(yaml_sessions):
             logger.error("catched sessions: {}, {}".format(session_names_sorted[i-1], session_names_sorted[i]))
             sys.exit(1)
 
-if __name__ == "__main__":
+def main():
     start = datetime.now()
     parser = argparse.ArgumentParser(description="robmuxinator")
     parser.add_argument(
