@@ -24,11 +24,14 @@ It is also helpful for local development to start multiple commands easily with 
 
 Install the robmuxinator with one simple command
 ```
-pip install -e .
+pip install .
 ```
 
 After that, you have to ensure that the root user has SSH access to every user which is used by `robmuxinator`. Simply copy your SSH credentials to the user by `sudo ssh-copy-id username@hostname`
 
+### Nix
+
+`robmuxinator` is also a [Nix Flake](https://nixos.wiki/wiki/Flakes) and available as package under `github:mojin-robotics/robmuxinator#robmuxinator`.
 
 ## Getting Started
 
