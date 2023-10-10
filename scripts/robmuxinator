@@ -713,6 +713,7 @@ def pre_shutdown_commands(yaml_content):
             if process.returncode < 0 or process.returncode > 1:
                 logger.error("failed to execute command: {}".format(cmd))
                 logger.error("error: {}".format(stderr))
+                sys.exit(1)
     else:
         logger.info("no pre-shutdown-commands defined")
 
@@ -729,6 +730,7 @@ def pre_reboot_commands(yaml_content):
             if process.returncode < 0 or process.returncode > 1:
                 logger.error("failed to execute command: {}".format(cmd))
                 logger.error("error: {}".format(stderr))
+                sys.exit(1)
     else:
         logger.info("no pre-reboot-commands defined")
 
