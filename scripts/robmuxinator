@@ -162,10 +162,6 @@ class SSHClient:
             self.init_connection()
             stdin, stdout, stderr = self.ssh_cli.exec_command(cmd, get_pty=get_pty)
             logger.debug(f"{cmd}")
-            for line in stdout:
-                logger.debug(f"{line}")
-            for line in stderr:
-                logger.debug(f"{line}")
             returncode = 0
             if wait_for_exit_status:
                 returncode = stdout.channel.recv_exit_status()
