@@ -200,20 +200,22 @@ class SSHClient:
         cmd = r"tmux list-panes -s -F \"#{pane_pid}\" -t " + session_name
         returncode, stdout, stderr = self.send_cmd(cmd)
         pid = None
+        pid_session = None
 
         if not returncode:
-            pid = stdout.readlines()
-            pid = pid[0].rstrip("\n") if len(pid) > 0 else None
-            if pid:
-                cmd = "pgrep -P {}".format(pid)
+            pid_session = stdout.readlines()
+            pid_session = pid_session[0].rstrip("\n") if len(pid_session) > 0 else None
+            if pid_session:
+                cmd = "pgrep -P {}".format(pid_session)
                 returncode, stdout, stderr = self.send_cmd(cmd)
                 pid = stdout.readlines()
                 pid = pid[0].rstrip("\n") if len(pid) > 0 else None
+                if not pid:
+                    logger.error(f"  session {session_name}: coudl not get process pid for session pid")
+            else:
+                logger.error(f"  session {session_name}: could not get process pid for session pane pid {pid_session}")
         else:
-            print(
-                Fore.RED
-                + "  session {}: could not get pid for process".format(session_name)
-            )
+            logger.error(f"  session {session_name}: command to get session pane_pid failed with returncode {returncode}")
 
         cmd = "tmux send -t {} C-c".format(session_name)
 
