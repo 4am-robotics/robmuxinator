@@ -211,7 +211,7 @@ class SSHClient:
                 pid = stdout.readlines()
                 pid = pid[0].rstrip("\n") if len(pid) > 0 else None
                 if not pid:
-                    logger.error(f"  session {session_name}: coudl not get process pid for session pid")
+                    logger.error(f"  session {session_name}: could not get process pid for session pid")
             else:
                 logger.error(f"  session {session_name}: could not get process pid for session pane pid {pid_session}")
         else:
