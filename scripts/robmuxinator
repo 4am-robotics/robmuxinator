@@ -241,9 +241,10 @@ class SSHClient:
 class Host(object):
     """Base class for hosts"""
 
-    def __init__(self, hostname, user):
+    def __init__(self, hostname, user, port=DEFAULT_PORT):
         self._hostname = hostname
         self._user = user
+        self._port = port
 
     def get_hostname(self):
         return self._hostname
@@ -260,17 +261,48 @@ class Host(object):
         stdout_data, stderr_data = process.communicate()
         return not process.returncode
 
-    def wait_for_host(self, timeout=30):
-        pass
+    def wait_for_host(self, timeout=60):
+        logger.info("  waiting for {}...".format(self._hostname))
+        end = datetime.now() + timedelta(seconds=timeout)
+        while not self.is_up():
+            time.sleep(0.25)
+            if datetime.now() > end:
+                logger.error(
+                    "  could not ping '{}' within {} secs".format(
+                        self._hostname, timeout
+                    )
+                )
+                return False
+        if self._port:
+            while True:
+                try:
+                    socket.create_connection((self._hostname, self._port), timeout=1)
+                    break
+                except OSError as ex:
+                    logger.debug(
+                        "  could not connect to '{}:{}' within {} secs: {}".format(
+                            self._hostname, self._port, timeout, ex
+                        )
+                    )
+                time.sleep(0.25)
+                if datetime.now() > end:
+                    logger.error(
+                        "  could not connect to '{}:{}' within {} secs: {}".format(
+                            self._hostname, self._port, timeout, ex
+                        )
+                    )
+                    return False
+
+        logger.info("  {} is up".format(self._hostname))
+        return True
 
 
 class LinuxHost(Host):
     """Handle linux hosts"""
 
     def __init__(self, hostname, user, port=DEFAULT_PORT, check_nfs=True):
-        super().__init__(hostname, user)
+        super().__init__(hostname, user, port)
         self._ssh_client = SSHClient(user, hostname)
-        self._port = port
         self._check_nfs = check_nfs
 
     def shutdown(self, timeout=60):
@@ -359,8 +391,7 @@ class WindowsHost(Host):
     """Handle windows hosts"""
 
     def __init__(self, hostname, user, port=DEFAULT_PORT):
-        super().__init__(hostname, user)
-        self._port = port
+        super().__init__(hostname, user, port)
 
     def shutdown(self, timeout=60):
         logger.info("  shutting down {}...".format(self._hostname))
@@ -392,68 +423,14 @@ class WindowsHost(Host):
         logger.info("  {} is down".format(self._hostname))
         return True
 
-    def wait_for_host(self, timeout=60):
-        logger.info("  waiting for {}...".format(self._hostname))
-        end = datetime.now() + timedelta(seconds=timeout)
-        while not self.is_up():
-            time.sleep(0.25)
-            if datetime.now() > end:
-                logger.error(
-                    "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout
-                    )
-                )
-                return False
-        if self._port:
-            while True:
-                try:
-                    socket.create_connection((self._hostname, self._port), timeout=1)
-                    break
-                except OSError as ex:
-                    logger.debug(
-                        "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex
-                        )
-                    )
-                time.sleep(0.25)
-                if datetime.now() > end:
-                    logger.error(
-                        "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex
-                        )
-                    )
-                    return False
-
-        logger.info("  {} is up".format(self._hostname))
-        return True
-
-
 class OnlineHost(Host):
     """Handle hosts which should only be available on the network"""
 
-    def __init__(self, hostname):
-        super().__init__(hostname, "")
+    def __init__(self, hostname, port=DEFAULT_PORT):
+        super().__init__(hostname, "", port)
 
     def shutdown(self, timeout=60):
         return True
-
-    def wait_for_host(self, timeout=30):
-        logger.info("  waiting for {}...".format(self._hostname))
-        end = datetime.now() + timedelta(seconds=timeout)
-        while not self.is_up():
-            time.sleep(0.25)
-            if datetime.now() > end:
-                logger.error(
-                    "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout
-                    )
-                )
-                return False
-
-        logger.info("  {} is up".format(self._hostname))
-        return True
-
-
 class Session(object):
     def __init__(self, ssh_client, session_name, yaml, envs=None) -> None:
         self._session_name = session_name
@@ -823,7 +800,7 @@ if __name__ == "__main__":
                     hosts[key] = WindowsHost(hostname, user, port)
 
             elif yaml_hosts[key]["os"].lower().strip() == "online":
-                hosts[key] = OnlineHost(hostname)
+                hosts[key] = OnlineHost(hostname, port)
             else:
                 logger.error("unknown host os: {}".format(yaml_hosts[key]["os"]))
                 sys.exit(1)
