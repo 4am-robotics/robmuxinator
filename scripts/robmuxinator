@@ -338,38 +338,11 @@ class LinuxHost(Host):
         stdout_data, stderr_data = process.communicate()
         return not process.returncode
 
-    def wait_for_host(self, timeout=30):
-        logger.info("  waiting for {}...".format(self._hostname))
+    def wait_for_host(self, timeout=60):
         end = datetime.now() + timedelta(seconds=timeout)
-        while not self.is_up():
-            time.sleep(0.25)
-            if datetime.now() > end:
-                logger.error(
-                    "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout
-                    )
-                )
-                return False
-        if self._port:
-            while True:
-                try:
-                    socket.create_connection((self._hostname, self._port), timeout=1)
-                    break
-                except OSError as ex:
-                    logger.debug(
-                        "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex
-                        )
-                    )
-                time.sleep(0.25)
-                if datetime.now() > end:
-                    logger.error(
-                        "  could not connect to '{}:{}' within {} secs".format(
-                            self._hostname, self._port, timeout
-                        )
-                    )
-                    return False
-
+        if not super().wait_for_host(timeout):
+            return False
+        logger.info("  waiting for {}, check nfs".format(self._hostname))
         if self._check_nfs:
             while not self.check_nfs_mount():
                 time.sleep(0.25)
@@ -381,7 +354,7 @@ class LinuxHost(Host):
                     )
                     return False
 
-        logger.info("  {} is up".format(self._hostname))
+        logger.info("  {} nfs is up".format(self._hostname))
         return True
 
 
