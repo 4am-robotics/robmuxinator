@@ -1,0 +1,24 @@
+timeout: 120
+
+# define hosts of robot
+hosts:
+  b1:
+    os: linux
+    user: robot
+    port: 22
+    check_nfs: false
+
+# define sessions of hosts
+sessions:
+  roscore:
+    host: b1
+    user: $USER
+    command: "roscore"
+    prio: 0
+    wait_for_core: false
+    locked: true
+  bringup:
+    host: b1
+    user: $USER
+    command: "roslaunch robot_bringup robot.launch"
+    prio: 1
