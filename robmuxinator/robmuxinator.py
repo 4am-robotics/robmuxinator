@@ -4,6 +4,7 @@ import concurrent.futures
 import logging
 import operator
 import os
+import shlex
 import socket
 import subprocess
 import sys
@@ -161,10 +162,6 @@ class SSHClient:
             self.init_connection()
             stdin, stdout, stderr = self.ssh_cli.exec_command(cmd, get_pty=get_pty)
             logger.debug(f"{cmd}")
-            for line in stdout:
-                logger.debug(f"{line}")
-            for line in stderr:
-                logger.debug(f"{line}")
             returncode = 0
             if wait_for_exit_status:
                 returncode = stdout.channel.recv_exit_status()
@@ -179,7 +176,7 @@ class SSHClient:
             return 1, None, None
 
     def send_keys(self, session_name, keys):
-        cmd = "tmux send-keys -t {} '{}' ENTER".format(session_name, keys)
+        cmd = "tmux send-keys -t {} {} ENTER".format(session_name, shlex.quote(keys))
         returncode, stdout, stderr = self.send_cmd(cmd)
         return not returncode
 
@@ -203,20 +200,22 @@ class SSHClient:
         cmd = r"tmux list-panes -s -F \"#{pane_pid}\" -t " + session_name
         returncode, stdout, stderr = self.send_cmd(cmd)
         pid = None
+        pid_session = None
 
         if not returncode:
-            pid = stdout.readlines()
-            pid = pid[0].rstrip("\n") if len(pid) > 0 else None
-            if pid:
-                cmd = "pgrep -P {}".format(pid)
+            pid_session = stdout.readlines()
+            pid_session = pid_session[0].rstrip("\n") if len(pid_session) > 0 else None
+            if pid_session:
+                cmd = "pgrep -P {}".format(pid_session)
                 returncode, stdout, stderr = self.send_cmd(cmd)
                 pid = stdout.readlines()
                 pid = pid[0].rstrip("\n") if len(pid) > 0 else None
+                if not pid:
+                    logger.error(f"  session {session_name}: could not get process pid for session pid")
+            else:
+                logger.error(f"  session {session_name}: could not get process pid for session pane pid {pid_session}")
         else:
-            print(
-                Fore.RED
-                + "  session {}: could not get pid for process".format(session_name)
-            )
+            logger.error(f"  session {session_name}: command to get session pane_pid failed with returncode {returncode}")
 
         cmd = "tmux send -t {} C-c".format(session_name)
 
@@ -242,9 +241,10 @@ class SSHClient:
 class Host(object):
     """Base class for hosts"""
 
-    def __init__(self, hostname, user):
+    def __init__(self, hostname, user, port=DEFAULT_PORT):
         self._hostname = hostname
         self._user = user
+        self._port = port
 
     def get_hostname(self):
         return self._hostname
@@ -260,138 +260,6 @@ class Host(object):
         # TODO: check usage of stdout and stderr
         stdout_data, stderr_data = process.communicate()
         return not process.returncode
-
-    def wait_for_host(self, timeout=30):
-        pass
-
-
-class LinuxHost(Host):
-    """Handle linux hosts"""
-
-    def __init__(self, hostname, user, port=DEFAULT_PORT, check_nfs=True):
-        super().__init__(hostname, user)
-        self._ssh_client = SSHClient(user, hostname)
-        self._port = port
-        self._check_nfs = check_nfs
-
-    def shutdown(self, timeout=60):
-        logger.info("  shutting down {}...".format(self._hostname))
-        cmd = "nohup sh -c '( ( sudo shutdown now -P 0 > /dev/null 2>&1 ) & )'"
-        ret, stdout, stderr = self._ssh_client.send_cmd(cmd, get_pty=True)
-
-        if ret == 0:
-            end = datetime.now() + timedelta(seconds=timeout)
-            while self.is_up():
-                time.sleep(0.25)
-                if datetime.now() > end:
-                    logger.error(
-                        "  could not shutdown '{}' within {} secs".format(
-                            self._hostname, timeout
-                        )
-                    )
-                    return False
-        else:
-            logger.error(
-                "  could not exec shutdown command on '{}'".format(self._hostname)
-            )
-            return False
-
-        logger.info("  {} is down".format(self._hostname))
-        return True
-
-    def check_nfs_mount(self):
-        cmd = "netstat | grep :nfs | grep {}".format(self._hostname)
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
-        )
-        stdout_data, stderr_data = process.communicate()
-        return not process.returncode
-
-    def wait_for_host(self, timeout=30):
-        logger.info("  waiting for {}...".format(self._hostname))
-        end = datetime.now() + timedelta(seconds=timeout)
-        while not self.is_up():
-            time.sleep(0.25)
-            if datetime.now() > end:
-                logger.error(
-                    "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout
-                    )
-                )
-                return False
-        if self._port:
-            while True:
-                try:
-                    socket.create_connection((self._hostname, self._port), timeout=1)
-                    break
-                except OSError as ex:
-                    logger.debug(
-                        "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex
-                        )
-                    )
-                time.sleep(0.25)
-                if datetime.now() > end:
-                    logger.error(
-                        "  could not connect to '{}:{}' within {} secs".format(
-                            self._hostname, self._port, timeout
-                        )
-                    )
-                    return False
-
-        if self._check_nfs:
-            while not self.check_nfs_mount():
-                time.sleep(0.25)
-                if datetime.now() > end:
-                    logger.error(
-                        "  could not find nfs mount for '{}' within {} secs".format(
-                            self._hostname, timeout
-                        )
-                    )
-                    return False
-
-        logger.info("  {} is up".format(self._hostname))
-        return True
-
-
-# TODO: windows hosts could also use port connection checks instead of simple pings
-# if no ports for windows hosts are defined, use ping.
-class WindowsHost(Host):
-    """Handle windows hosts"""
-
-    def __init__(self, hostname, user, port=DEFAULT_PORT):
-        super().__init__(hostname, user)
-        self._port = port
-
-    def shutdown(self, timeout=60):
-        logger.info("  shutting down {}...".format(self._hostname))
-        cmd = "net rpc shutdown -f -t 1 -I {host} -U rpc_user%rpc_user".format(
-            host=self._hostname
-        )
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
-        )
-        # TODO: check usage of stdout and stderr
-        stdout_data, stderr_data = process.communicate()
-        if not process.returncode:
-            end = datetime.now() + timedelta(seconds=timeout)
-            while self.is_up():
-                time.sleep(0.25)
-                if datetime.now() > end:
-                    logger.error(
-                        "  could not shutdown '{}' within {} secs".format(
-                            self._hostname, timeout
-                        )
-                    )
-                    return False
-        else:
-            logger.error(
-                "  could not exec shutdown command on '{}'".format(self._hostname)
-            )
-            return False
-
-        logger.info("  {} is down".format(self._hostname))
-        return True
 
     def wait_for_host(self, timeout=60):
         logger.info("  waiting for {}...".format(self._hostname))
@@ -429,32 +297,113 @@ class WindowsHost(Host):
         return True
 
 
+class LinuxHost(Host):
+    """Handle linux hosts"""
+
+    def __init__(self, hostname, user, port=DEFAULT_PORT, check_nfs=True):
+        super().__init__(hostname, user, port)
+        self._ssh_client = SSHClient(user, hostname)
+        self._check_nfs = check_nfs
+
+    def shutdown(self, timeout=60):
+        logger.info("  shutting down {}...".format(self._hostname))
+        cmd = "nohup sh -c '( ( sudo shutdown now -P 0 > /dev/null 2>&1 ) & )'"
+        ret, stdout, stderr = self._ssh_client.send_cmd(cmd, get_pty=True)
+
+        if ret == 0:
+            end = datetime.now() + timedelta(seconds=timeout)
+            while self.is_up():
+                time.sleep(0.25)
+                if datetime.now() > end:
+                    logger.error(
+                        "  could not shutdown '{}' within {} secs".format(
+                            self._hostname, timeout
+                        )
+                    )
+                    return False
+        else:
+            logger.error(
+                "  could not exec shutdown command on '{}'".format(self._hostname)
+            )
+            return False
+
+        logger.info("  {} is down".format(self._hostname))
+        return True
+
+    def check_nfs_mount(self):
+        cmd = "netstat | grep :nfs | grep {}".format(self._hostname)
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
+        stdout_data, stderr_data = process.communicate()
+        return not process.returncode
+
+    def wait_for_host(self, timeout=60):
+        end = datetime.now() + timedelta(seconds=timeout)
+        if not super().wait_for_host(timeout):
+            return False
+        logger.info("  waiting for {}, check nfs".format(self._hostname))
+        if self._check_nfs:
+            while not self.check_nfs_mount():
+                time.sleep(0.25)
+                if datetime.now() > end:
+                    logger.error(
+                        "  could not find nfs mount for '{}' within {} secs".format(
+                            self._hostname, timeout
+                        )
+                    )
+                    return False
+
+        logger.info("  {} nfs is up".format(self._hostname))
+        return True
+
+
+# TODO: windows hosts could also use port connection checks instead of simple pings
+# if no ports for windows hosts are defined, use ping.
+class WindowsHost(Host):
+    """Handle windows hosts"""
+
+    def __init__(self, hostname, user, port=DEFAULT_PORT):
+        super().__init__(hostname, user, port)
+
+    def shutdown(self, timeout=60):
+        logger.info("  shutting down {}...".format(self._hostname))
+        cmd = "net rpc shutdown -f -t 1 -I {host} -U rpc_user%rpc_user".format(
+            host=self._hostname
+        )
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
+        # TODO: check usage of stdout and stderr
+        stdout_data, stderr_data = process.communicate()
+        if not process.returncode:
+            end = datetime.now() + timedelta(seconds=timeout)
+            while self.is_up():
+                time.sleep(0.25)
+                if datetime.now() > end:
+                    logger.error(
+                        "  could not shutdown '{}' within {} secs".format(
+                            self._hostname, timeout
+                        )
+                    )
+                    return False
+        else:
+            logger.error(
+                "  could not exec shutdown command on '{}'".format(self._hostname)
+            )
+            return False
+
+        logger.info("  {} is down".format(self._hostname))
+        return True
+
 class OnlineHost(Host):
     """Handle hosts which should only be available on the network"""
 
-    def __init__(self, hostname):
-        super().__init__(hostname, "")
+    def __init__(self, hostname, port=DEFAULT_PORT):
+        super().__init__(hostname, "", port)
 
     def shutdown(self, timeout=60):
         return True
-
-    def wait_for_host(self, timeout=30):
-        logger.info("  waiting for {}...".format(self._hostname))
-        end = datetime.now() + timedelta(seconds=timeout)
-        while not self.is_up():
-            time.sleep(0.25)
-            if datetime.now() > end:
-                logger.error(
-                    "  could not ping '{}' within {} secs".format(
-                        self._hostname, timeout
-                    )
-                )
-                return False
-
-        logger.info("  {} is up".format(self._hostname))
-        return True
-
-
 class Session(object):
     def __init__(self, ssh_client, session_name, yaml, envs=None) -> None:
         self._session_name = session_name
@@ -709,9 +658,13 @@ def pre_shutdown_commands(yaml_content):
             process = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdio, stderr = process.communicate()
-            if process.returncode < 0 or process.returncode > 1:
+            if process.returncode == 0:
+                logger.info("successfully executed command: {}".format(cmd))
+                logger.info("output: {}".format(stdio))
+            else:
                 logger.error("failed to execute command: {}".format(cmd))
                 logger.error("error: {}".format(stderr))
+                sys.exit(1)
     else:
         logger.info("no pre-shutdown-commands defined")
 
@@ -725,9 +678,13 @@ def pre_reboot_commands(yaml_content):
             process = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdio, stderr = process.communicate()
-            if process.returncode < 0 or process.returncode > 1:
+            if process.returncode == 0:
+                logger.info("successfully executed command: {}".format(cmd))
+                logger.info("output: {}".format(stdio))
+            else:
                 logger.error("failed to execute command: {}".format(cmd))
                 logger.error("error: {}".format(stderr))
+                sys.exit(1)
     else:
         logger.info("no pre-reboot-commands defined")
 
@@ -816,7 +773,7 @@ def main():
                     hosts[key] = WindowsHost(hostname, user, port)
 
             elif yaml_hosts[key]["os"].lower().strip() == "online":
-                hosts[key] = OnlineHost(hostname)
+                hosts[key] = OnlineHost(hostname, port)
             else:
                 logger.error("unknown host os: {}".format(yaml_hosts[key]["os"]))
                 sys.exit(1)
