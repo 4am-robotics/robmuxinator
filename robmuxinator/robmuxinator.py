@@ -134,6 +134,16 @@ class SSHClient:
 
     def init_connection(self):
         if self.ssh_cli is None:
+            key_filename=""
+            key_candidates=["id_ed25519", "id_rsa"]
+            for key in key_candidates:
+                key_filename = os.path.expanduser(f"~/.ssh/{key}")
+                if os.path.isfile(key_filename):
+                    logger.debug(f"  using key_filename '{key_filename}'")
+                    break
+            else:
+                raise Exception(f"  no key_file found among candidates {key_candidates}")
+
             try:
                 self.ssh_cli = paramiko.client.SSHClient()
                 self.ssh_cli.load_system_host_keys()
@@ -141,7 +151,7 @@ class SSHClient:
                 self.ssh_cli.connect(
                     username=self._user,
                     hostname=self._hostname,
-                    key_filename=os.path.expanduser("~/.ssh/id_rsa"),
+                    key_filename=key_filename,
                     disabled_algorithms={"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]},
                 )
             except (
