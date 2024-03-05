@@ -122,9 +122,14 @@ DEFAULT_PORT = None  # default port None disables port check
 class SSHClient:
     """Handle commands over ssh tunnel"""
 
-    def __init__(self, user, hostname):
+    def __init__(self, user, hostname, port=DEFAULT_PORT):
         self._user = user
         self._hostname = hostname
+
+        if port is not None:
+            self._port = port
+        else:
+            self._port = 22
 
         # check if user has sudo privileges
         self._sudo_user = True if os.getuid() == 0 else False
@@ -151,6 +156,7 @@ class SSHClient:
                 self.ssh_cli.connect(
                     username=self._user,
                     hostname=self._hostname,
+                    port=self._port,
                     key_filename=key_filename,
                     disabled_algorithms={"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]},
                 )
@@ -259,6 +265,9 @@ class Host(object):
     def get_hostname(self):
         return self._hostname
 
+    def get_port(self):
+        return self._port
+
     def shutdown(self, timeout=30):
         pass
 
@@ -312,7 +321,7 @@ class LinuxHost(Host):
 
     def __init__(self, hostname, user, port=DEFAULT_PORT, check_nfs=True):
         super().__init__(hostname, user, port)
-        self._ssh_client = SSHClient(user, hostname)
+        self._ssh_client = SSHClient(user, hostname, port)
         self._check_nfs = check_nfs
 
     def shutdown(self, timeout=60):
@@ -406,6 +415,7 @@ class WindowsHost(Host):
         logger.info("  {} is down".format(self._hostname))
         return True
 
+
 class OnlineHost(Host):
     """Handle hosts which should only be available on the network"""
 
@@ -414,6 +424,8 @@ class OnlineHost(Host):
 
     def shutdown(self, timeout=60):
         return True
+
+
 class Session(object):
     def __init__(self, ssh_client, session_name, yaml, envs=None) -> None:
         self._session_name = session_name
@@ -530,6 +542,7 @@ class Session(object):
         print("\tpre_condition: {}".format(self._pre_condition))
         print("\tprio: {}".format(self.prio))
         print("\tlocked: {}".format(self._locked))
+
 
 def wait_for_hosts(hosts, timeout=30):
     start = datetime.now()
@@ -844,7 +857,7 @@ def main():
                 if key in args.sessions:
                     sessions.append(
                         Session(
-                            SSHClient(user=user, hostname=hosts[host].get_hostname()),
+                            SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_port()),
                             key,
                             yaml_sessions[key],
                             envs
@@ -853,7 +866,7 @@ def main():
             else:
                 sessions.append(
                     Session(
-                        SSHClient(user=user, hostname=hosts[host].get_hostname()),
+                        SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_port()),
                         key,
                         yaml_sessions[key],
                         envs
