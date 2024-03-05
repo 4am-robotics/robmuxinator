@@ -21,13 +21,24 @@
               preCheck = ''
                 export HOME=$(mktemp -d)
               '';
-              
+
               propagatedBuildInputs = with pkgs; [
                 python3Packages.argcomplete
                 python3Packages.colorama
                 python3Packages.paramiko
                 python3Packages.pyyaml
               ];
+            };
+          });
+
+        apps = forAllSystems (system:
+          let apps = nixpkgsFor.${system}; in
+          {
+            default = self.apps.${system}.robmuxinator;
+
+            robmuxinator = {
+              type = "app";
+              program = "${self.packages.${system}.robmuxinator}/bin/robmuxinator";
             };
           });
       };
