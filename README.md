@@ -22,7 +22,7 @@ It is also helpful for local development to start multiple commands easily with 
 
 ## Installation
 
-Install the robmuxinator with one simple command
+Install the robmuxinator with one simple command (execute in the `robmuxinator` package)
 ```
 sudo pip install .
 ```
@@ -60,7 +60,7 @@ sessions:
     host: localhost
     prio: 1
     command: echo 'starting bringup...'
-  
+
 ```
 
 To start the `tmux` sessions use `robmuxinator -c ~/path-to-file start`. Now, you are able to see your sessions with `tmux ls`
@@ -94,7 +94,7 @@ sessions:
     host: h2
     prio: 1
     command: echo 'starting bringup...'
-  
+
 ```
 ## Usage
 ### Command Choices
