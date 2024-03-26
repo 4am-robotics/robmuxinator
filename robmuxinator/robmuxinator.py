@@ -84,7 +84,6 @@ logging.addLevelName(logging.ERROR, "E")
 logging.addLevelName(logging.CRITICAL, "C")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 custom_format = CustomFormatter()
 
@@ -750,12 +749,23 @@ def main():
         action="store_true",
         help="close sessions even if they are locked",
     )
+    parser.add_argument(
+        "-l",
+        "--logging_level",
+        required=False,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="logging level",
+    )
 
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
     # parse arguments
     yaml_file = args.config
     command = args.command
+
+    # set logging level
+    logger.setLevel(level=args.logging_level)
 
     # load yaml file
     with open(yaml_file, "r") as fs:
