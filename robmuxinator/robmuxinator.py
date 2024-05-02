@@ -304,8 +304,8 @@ class Host(object):
                 time.sleep(0.25)
                 if datetime.now() > end:
                     logger.error(
-                        "  could not connect to '{}:{}' within {} secs: {}".format(
-                            self._hostname, self._port, timeout, ex
+                        "  could not connect to '{}:{}' within {} secs".format(
+                            self._hostname, self._port, timeout
                         )
                     )
                     return False
