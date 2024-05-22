@@ -732,7 +732,7 @@ def main():
         "-c",
         "--config",
         help="the path to the yaml config file",
-        default="/etc/ros/cob.yaml",
+        default="/etc/ros/upstart_robot.yaml",
     )
     parser.add_argument(
         "-s",

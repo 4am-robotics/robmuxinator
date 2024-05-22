@@ -108,7 +108,7 @@ sessions:
 ### Command-Line Arguments
 
 - `command`: Choose one of the available commands (start, stop, restart, shutdown, reboot).
-- `-c` or `--config`: Specify the path to the YAML configuration file that defines the hosts, sessions, and other settings. The default configuration file path is "/etc/ros/cob.yaml."
+- `-c` or `--config`: Specify the path to the YAML configuration file that defines the hosts, sessions, and other settings. The default configuration file path is "/etc/ros/upstart_robot.yaml."
 - `-s` or `--sessions`: Optionally, specify which sessions should be started or stopped. You can provide multiple session names as arguments.
 - `-f` or `--force`: Use this flag to force the closure of sessions, even if they are locked.
 
