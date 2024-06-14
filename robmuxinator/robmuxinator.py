@@ -774,6 +774,12 @@ def main():
         default="/etc/ros/upstart_robot.yaml",
     )
     parser.add_argument(
+        "-p",
+        "--prefix",
+        help="the prefix to append to each session name within the config file",
+        default="",
+    )
+    parser.add_argument(
         "-s",
         "--sessions",
         required=False,
@@ -800,6 +806,7 @@ def main():
     args = parser.parse_args()
     # parse arguments
     yaml_file = args.config
+    prefix = args.prefix
     command = args.command
 
     # set logging level
@@ -880,6 +887,10 @@ def main():
     else:
         envs = None
 
+    # check if prefix was given by the user
+    if prefix != "":
+        envs.append(("PREFIX", prefix))
+
     # get sessions from yaml
     yaml_sessions = None
     if "sessions" in yaml_content:
@@ -911,7 +922,7 @@ def main():
                     sessions.append(
                         Session(
                             SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_ssh_port()),
-                            key,
+                            prefix + key,
                             yaml_sessions[key],
                             envs
                         )
@@ -920,7 +931,7 @@ def main():
                 sessions.append(
                     Session(
                         SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_ssh_port()),
-                        key,
+                        prefix + key,
                         yaml_sessions[key],
                         envs
                     )
