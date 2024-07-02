@@ -1,5 +1,6 @@
 import argparse
 import concurrent.futures
+import io
 import logging
 import operator
 import os
@@ -132,6 +133,9 @@ class SSHClient:
         # check if user has sudo privileges
         self._sudo_user = True if os.getuid() == 0 else False
 
+        self._use_local_connection = self._hostname == "localhost" \
+            and self._user == os.getenv("USER", "INVALID_USER")
+
         # TODO: handle exceptions
         self.ssh_cli = None
 
@@ -173,12 +177,29 @@ class SSHClient:
     def send_cmd(self, cmd, wait_for_exit_status=True, get_pty=False):
         start = datetime.now()
         try:
-            self.init_connection()
-            stdin, stdout, stderr = self.ssh_cli.exec_command(cmd, get_pty=get_pty)
-            logger.debug(f"{cmd}")
             returncode = 0
-            if wait_for_exit_status:
-                returncode = stdout.channel.recv_exit_status()
+            if not self._use_local_connection:
+                self.init_connection()
+                stdin, stdout, stderr = self.ssh_cli.exec_command(cmd, get_pty=get_pty)
+                logger.debug(f"{cmd}")
+                if wait_for_exit_status:
+                    returncode = stdout.channel.recv_exit_status()
+            else:
+                logger.debug(f"  using local connection")
+                process = subprocess.Popen([cmd],
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
+                                            shell=True,
+                                            text=True)
+                stdout = process.stdout
+                stderr = process.stderr
+
+                if wait_for_exit_status:
+                    stdout_str, stderr_str = process.communicate()
+                    # wrap output in IO buffers so it is compatible with .readlines()
+                    stdout = io.StringIO(stdout_str)
+                    stderr = io.StringIO(stderr_str)
+                    returncode = process.returncode
             logger.debug(
                 "send_cmd: {}  took {} secs".format(
                     cmd, (datetime.now() - start).total_seconds()
