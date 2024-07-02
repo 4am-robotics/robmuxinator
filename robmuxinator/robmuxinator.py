@@ -472,7 +472,7 @@ class Session(object):
         command_env_prefix = ""
         if self._envs is not None:
             for env in self._envs:
-                command_env_prefix += "export {}={} && ".format(env[0], env[1])
+                command_env_prefix += "export {}='{}' && ".format(env[0], env[1])
 
         if "command" in yaml_session:
             self._command = command_env_prefix + yaml_session["command"]
