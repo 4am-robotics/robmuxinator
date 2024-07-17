@@ -133,7 +133,7 @@ class SSHClient:
         # check if user has sudo privileges
         self._sudo_user = True if os.getuid() == 0 else False
 
-        self._use_local_connection = self._hostname == "localhost" \
+        self._use_local_connection = self._hostname in ["localhost", "127.0.0.1"] \
             and self._user == os.getenv("USER", "INVALID_USER")
 
         # TODO: handle exceptions
