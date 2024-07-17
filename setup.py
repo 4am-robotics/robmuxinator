@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="robmuxinator",
-    version="0.1.2",
+    version="0.1.3",
     author="Benjamin Maidel",
     author_email="benjamin.maidel@4am-robotics.com",
     maintainer="Philipp Gehring",
