@@ -44,11 +44,10 @@ def is_master_online(master_uri=None):
 
     try:
         code, msg, val = handle.getPid(caller_id)
-        if code == 1:
-            return True
-        else:
-            return False
-    except:
+        logger.debug(f"[is_master_online] code: '{code}', msg: '{msg}', val: {val}")
+        return bool(code == 1)
+    except Exception as e:
+        logger.debug(f"[is_master_online] exception: {e}")
         return False
 
 
@@ -99,8 +98,8 @@ if not os.path.exists(logPath):
 logFile = "robmuxinator"
 fileHandler = RotatingFileHandler(
     "{0}/{1}.log".format(logPath, logFile), maxBytes=1024*10000, backupCount=4)
-format = logging.Formatter("[%(levelname)s] [%(asctime)s]: %(message)s")
-fileHandler.setFormatter(format)
+log_formatter = logging.Formatter("[%(levelname)s] [%(asctime)s]: %(message)s")
+fileHandler.setFormatter(log_formatter)
 logger.addHandler(fileHandler)
 
 paramiko_version_major = int(paramiko.__version__.split(".")[0])
@@ -185,7 +184,7 @@ class SSHClient:
                 if wait_for_exit_status:
                     returncode = stdout.channel.recv_exit_status()
             else:
-                logger.debug(f"  using local connection")
+                logger.debug("  using local connection")
                 process = subprocess.Popen([cmd],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
@@ -446,18 +445,18 @@ class OnlineHost(Host):
 
 
 class Session(object):
-    def __init__(self, ssh_client, session_name, yaml, envs=None) -> None:
+    def __init__(self, ssh_client, session_name, yaml_session, envs=None) -> None:
         self._session_name = session_name
         self._ssh_client = ssh_client  # type: SSHClient
         self._envs = envs
 
-        if "user" in yaml:
-            self._user = yaml["user"]
+        if "user" in yaml_session:
+            self._user = yaml_session["user"]
         else:
             self._user = DEFAULT_USER
 
-        if "host" in yaml:
-            self._host = yaml["host"]
+        if "host" in yaml_session:
+            self._host = yaml_session["host"]
         else:
             self._host = DEFAULT_HOST
 
@@ -466,28 +465,28 @@ class Session(object):
             for env in self._envs:
                 command_env_prefix += "export {}={} && ".format(env[0], env[1])
 
-        if "command" in yaml:
-            self._command = command_env_prefix + yaml["command"]
+        if "command" in yaml_session:
+            self._command = command_env_prefix + yaml_session["command"]
         else:
             raise Exception("No command in session section")
 
-        if "wait_for_core" in yaml:
-            self._wait_for_core = yaml["wait_for_core"]
+        if "wait_for_core" in yaml_session:
+            self._wait_for_core = yaml_session["wait_for_core"]
         else:
             self._wait_for_core = True
 
-        if "pre_condition" in yaml:
-            self._pre_condition = yaml["pre_condition"]
+        if "pre_condition" in yaml_session:
+            self._pre_condition = yaml_session["pre_condition"]
         else:
             self._pre_condition = None
 
-        if "prio" in yaml:
-            self.prio = int(yaml["prio"])
+        if "prio" in yaml_session:
+            self.prio = int(yaml_session["prio"])
         else:
             self.prio = 10
 
-        if "locked" in yaml:
-            self._locked = yaml["locked"]
+        if "locked" in yaml_session:
+            self._locked = yaml_session["locked"]
         else:
             self._locked = False
 
