@@ -1,5 +1,6 @@
 import argparse
 import concurrent.futures
+import io
 import logging
 import operator
 import os
@@ -43,11 +44,10 @@ def is_master_online(master_uri=None):
 
     try:
         code, msg, val = handle.getPid(caller_id)
-        if code == 1:
-            return True
-        else:
-            return False
-    except:
+        logger.debug(f"[is_master_online] code: '{code}', msg: '{msg}', val: {val}")
+        return bool(code == 1)
+    except Exception as e:
+        logger.debug(f"[is_master_online] exception: {e}")
         return False
 
 
@@ -98,8 +98,8 @@ if not os.path.exists(logPath):
 logFile = "robmuxinator"
 fileHandler = RotatingFileHandler(
     "{0}/{1}.log".format(logPath, logFile), maxBytes=1024*10000, backupCount=4)
-format = logging.Formatter("[%(levelname)s] [%(asctime)s]: %(message)s")
-fileHandler.setFormatter(format)
+log_formatter = logging.Formatter("[%(levelname)s] [%(asctime)s]: %(message)s")
+fileHandler.setFormatter(log_formatter)
 logger.addHandler(fileHandler)
 
 paramiko_version_major = int(paramiko.__version__.split(".")[0])
@@ -131,6 +131,9 @@ class SSHClient:
 
         # check if user has sudo privileges
         self._sudo_user = True if os.getuid() == 0 else False
+
+        self._use_local_connection = self._hostname in ["localhost", "127.0.0.1"] \
+            and self._user == os.getenv("USER", "INVALID_USER")
 
         # TODO: handle exceptions
         self.ssh_cli = None
@@ -173,12 +176,29 @@ class SSHClient:
     def send_cmd(self, cmd, wait_for_exit_status=True, get_pty=False):
         start = datetime.now()
         try:
-            self.init_connection()
-            stdin, stdout, stderr = self.ssh_cli.exec_command(cmd, get_pty=get_pty)
-            logger.debug(f"{cmd}")
             returncode = 0
-            if wait_for_exit_status:
-                returncode = stdout.channel.recv_exit_status()
+            if not self._use_local_connection:
+                self.init_connection()
+                stdin, stdout, stderr = self.ssh_cli.exec_command(cmd, get_pty=get_pty)
+                logger.debug(f"{cmd}")
+                if wait_for_exit_status:
+                    returncode = stdout.channel.recv_exit_status()
+            else:
+                logger.debug("  using local connection")
+                process = subprocess.Popen([cmd],
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
+                                            shell=True,
+                                            text=True)
+                stdout = process.stdout
+                stderr = process.stderr
+
+                if wait_for_exit_status:
+                    stdout_str, stderr_str = process.communicate()
+                    # wrap output in IO buffers so it is compatible with .readlines()
+                    stdout = io.StringIO(stdout_str)
+                    stderr = io.StringIO(stderr_str)
+                    returncode = process.returncode
             logger.debug(
                 "send_cmd: {}  took {} secs".format(
                     cmd, (datetime.now() - start).total_seconds()
@@ -425,18 +445,18 @@ class OnlineHost(Host):
 
 
 class Session(object):
-    def __init__(self, ssh_client, session_name, yaml, envs=None) -> None:
+    def __init__(self, ssh_client, session_name, yaml_session, envs=None) -> None:
         self._session_name = session_name
         self._ssh_client = ssh_client  # type: SSHClient
         self._envs = envs
 
-        if "user" in yaml:
-            self._user = yaml["user"]
+        if "user" in yaml_session:
+            self._user = yaml_session["user"]
         else:
             self._user = DEFAULT_USER
 
-        if "host" in yaml:
-            self._host = yaml["host"]
+        if "host" in yaml_session:
+            self._host = yaml_session["host"]
         else:
             self._host = DEFAULT_HOST
 
@@ -445,28 +465,28 @@ class Session(object):
             for env in self._envs:
                 command_env_prefix += "export {}={} && ".format(env[0], env[1])
 
-        if "command" in yaml:
-            self._command = command_env_prefix + yaml["command"]
+        if "command" in yaml_session:
+            self._command = command_env_prefix + yaml_session["command"]
         else:
             raise Exception("No command in session section")
 
-        if "wait_for_core" in yaml:
-            self._wait_for_core = yaml["wait_for_core"]
+        if "wait_for_core" in yaml_session:
+            self._wait_for_core = yaml_session["wait_for_core"]
         else:
             self._wait_for_core = True
 
-        if "pre_condition" in yaml:
-            self._pre_condition = yaml["pre_condition"]
+        if "pre_condition" in yaml_session:
+            self._pre_condition = yaml_session["pre_condition"]
         else:
             self._pre_condition = None
 
-        if "prio" in yaml:
-            self.prio = int(yaml["prio"])
+        if "prio" in yaml_session:
+            self.prio = int(yaml_session["prio"])
         else:
             self.prio = 10
 
-        if "locked" in yaml:
-            self._locked = yaml["locked"]
+        if "locked" in yaml_session:
+            self._locked = yaml_session["locked"]
         else:
             self._locked = False
 
