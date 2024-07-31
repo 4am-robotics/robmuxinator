@@ -207,6 +207,7 @@ class SSHClient:
             return returncode, stdout, stderr
         except Exception as e:
             logger.error("{}".format(e))
+            self.ssh_cli = None
             return 1, None, None
 
     def send_keys(self, session_name, keys):
