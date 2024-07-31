@@ -126,6 +126,7 @@ sessions:
 - `os: string` {linux, windows, online} (mandatory): Operating system of the host. Hosts of type `online` will only be checked for network availability.
 - `user: string` (optional, default: robot): User on the host machine used for sending SSH commands.
 - `port: int` (optional, default: none): The port that is checked to determine if a service on the host is already up.
+- `ssh_port: int` (optional, default: `22`): The port that is used for SSH connections to the host.
 - `hostname: string` (optional, default: `<key>` of `hosts` section): The hostname of the host PC.
 - `check_nfs: bool` (optional, default: true): Whether the host should be checked for NFS status. Only supported on Linux.
 
