@@ -392,7 +392,16 @@ class LinuxHost(Host):
                     )
                     return False
 
-        logger.info("  {} nfs is up".format(self._hostname))
+        # Send an initial 'echo' command to verify if sending commands works
+        logger.info("  {} sending initial command".format(self._hostname))
+        ret = 1
+        while ret != 0:
+            ret, _, _ = self._ssh_client.send_cmd("echo", get_pty=True)
+            if ret != 0:
+                logger.error("  {} sending initial command failed".format(self._hostname))
+                time.sleep(0.25)
+        logger.info("  {} sending initial command succeeded".format(self._hostname))
+
         return True
 
 
