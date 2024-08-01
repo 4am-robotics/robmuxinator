@@ -98,7 +98,7 @@ if not os.path.exists(logPath):
 logFile = "robmuxinator"
 fileHandler = RotatingFileHandler(
     "{0}/{1}.log".format(logPath, logFile), maxBytes=1024*10000, backupCount=4)
-log_formatter = logging.Formatter("[%(levelname)s] [%(asctime)s]: %(message)s")
+log_formatter = logging.Formatter("[%(levelname)s] [%(created)0.15s]: %(message)s")
 fileHandler.setFormatter(log_formatter)
 logger.addHandler(fileHandler)
 
