@@ -472,7 +472,7 @@ class Session(object):
         command_env_prefix = ""
         if self._envs is not None:
             for env in self._envs:
-                command_env_prefix += "export {}={} && ".format(env[0], env[1])
+                command_env_prefix += "export {}='{}' && ".format(env[0], env[1])
 
         if "command" in yaml_session:
             self._command = command_env_prefix + yaml_session["command"]
@@ -764,6 +764,12 @@ def main():
         default="/etc/ros/upstart_robot.yaml",
     )
     parser.add_argument(
+        "-n",
+        "--number",
+        help="the number to append to each session name within the config file. used for multi robot setups. Can also be used within sessions as a env_variable. this is used as a unique ros domain id",
+        default="",
+    )
+    parser.add_argument(
         "-s",
         "--sessions",
         required=False,
@@ -790,6 +796,7 @@ def main():
     args = parser.parse_args()
     # parse arguments
     yaml_file = args.config
+    number = args.number
     command = args.command
 
     # set logging level
@@ -870,6 +877,11 @@ def main():
     else:
         envs = None
 
+    # check if number was given by the user. This indicates the use of a multi robot setup. Therefore we export a unique ROS_DOMAIN_ID
+    if number != "":
+        envs.append(("NUMBER", number))
+        envs.append(("ROS_DOMAIN_ID", number))
+
     # get sessions from yaml
     yaml_sessions = None
     if "sessions" in yaml_content:
@@ -901,7 +913,7 @@ def main():
                     sessions.append(
                         Session(
                             SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_ssh_port()),
-                            key,
+                            number + key,
                             yaml_sessions[key],
                             envs
                         )
@@ -910,7 +922,7 @@ def main():
                 sessions.append(
                     Session(
                         SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_ssh_port()),
-                        key,
+                        number + key,
                         yaml_sessions[key],
                         envs
                     )
