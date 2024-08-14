@@ -8,6 +8,7 @@ It is also helpful for local development to start multiple commands easily with 
 
 - [robmuxinator](#robmuxinator)
   - [Installation](#installation)
+    - [Pip](#pip)
     - [Nix](#nix)
   - [Getting Started](#getting-started)
   - [Usage](#usage)
@@ -22,6 +23,8 @@ It is also helpful for local development to start multiple commands easily with 
   - [License](#license)
 
 ## Installation
+
+### Pip
 
 Install the robmuxinator with one simple command (execute in the `robmuxinator` package)
 ```
