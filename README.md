@@ -8,6 +8,8 @@ It is also helpful for local development to start multiple commands easily with 
 
 - [robmuxinator](#robmuxinator)
   - [Installation](#installation)
+    - [Pip](#pip)
+    - [Nix](#nix)
   - [Getting Started](#getting-started)
   - [Usage](#usage)
     - [Command Choices](#command-choices)
@@ -21,6 +23,8 @@ It is also helpful for local development to start multiple commands easily with 
   - [License](#license)
 
 ## Installation
+
+### Pip
 
 Install the robmuxinator with one simple command (execute in the `robmuxinator` package)
 ```
@@ -136,7 +140,8 @@ sessions:
 - `host: string` (optional, default: hostname of localhost): Target host of the `tmux` session.
 - `user: string` (optional, default: robot): Target user of the `tmux` session.
 - `wait_for_core: bool` (optional, default: true): Starts the session only after `roscore` is available.
-- `prio: int` (optional, default: 10): Priority of the session. Sessions with the same priority start concurrently. Smaller numbers have higher priority.
+- `prio: int` (optional, default: 10): Priority of starting the session. Sessions with the same priority start concurrently. Smaller numbers have higher priority.
+- `prio_stop: int` (optional, default: `prio`): Priority of stopping the session. Sessions with the same priority stop concurrently. Higher numbers have higher priority.
 - `locked: bool` (optional, default: false): Locked sessions won't be closed on `stop` or `restart` (only if forced).
 - `pre_condition: string` (optional): Bash command used as a condition that must be fulfilled before the session can start.
 
@@ -175,4 +180,3 @@ This is s summary of useful commands for working with `tmux`.
 
 ## License
 Apache License Version 2.0, January 2004
-

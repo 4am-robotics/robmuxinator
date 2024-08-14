@@ -494,6 +494,11 @@ class Session(object):
         else:
             self.prio = 10
 
+        if "prio_stop" in yaml_session:
+            self.prio_stop = int(yaml_session["prio_stop"])
+        else:
+            self.prio_stop = self.prio
+
         if "locked" in yaml_session:
             self._locked = yaml_session["locked"]
         else:
@@ -568,6 +573,7 @@ class Session(object):
         print("\tcommand: {}".format(self._command))
         print("\tpre_condition: {}".format(self._pre_condition))
         print("\tprio: {}".format(self.prio))
+        print("\tprio_stop: {}".format(self.prio_stop))
         print("\tlocked: {}".format(self._locked))
 
 
@@ -645,9 +651,9 @@ def order_sessions_by_key(sessions, key):
     ordered_array = sorted(sessions, key=operator.attrgetter(key))
     ordered_sessions = dict()
     for s in ordered_array:
-        if not s.prio in ordered_sessions:
-            ordered_sessions[s.prio] = []
-        ordered_sessions[s.prio].append(s)
+        if not getattr(s, key) in ordered_sessions:
+            ordered_sessions[getattr(s, key)] = []
+        ordered_sessions[getattr(s, key)].append(s)
     # returns a dict of arrays with prio as key and array of session with the same key(prio) as value
     return ordered_sessions
 
@@ -919,33 +925,34 @@ def main():
         logger.error(e)
         sys.exit()
 
-    ordered_sessions = order_sessions_by_key(sessions, "prio")
+    ordered_sessions_start = order_sessions_by_key(sessions, "prio")
+    ordered_sessions_stop = order_sessions_by_key(sessions, "prio_stop")
 
     if command == "start":
         # wait for other hosts
         if len(hosts) > 1 and not wait_for_hosts(hosts, timeout):
             sys.exit()
-        start_sessions(ordered_sessions)
+        start_sessions(ordered_sessions_start)
         logger.info(
             "starting took {} secs".format((datetime.now() - start).total_seconds())
         )
     elif command == "stop":
-        stop_sessions(ordered_sessions, args.force)
+        stop_sessions(ordered_sessions_stop, args.force)
         logger.info(
             "stopping took {} secs".format((datetime.now() - start).total_seconds())
         )
     elif command == "restart":
-        stop_sessions(ordered_sessions, args.force)
-        start_sessions(ordered_sessions)
+        stop_sessions(ordered_sessions_stop, args.force)
+        start_sessions(ordered_sessions_start)
         logger.info(
             "restart took {} secs".format((datetime.now() - start).total_seconds())
         )
     elif command == "shutdown":
         pre_shutdown_commands(yaml_content)
-        stop_sessions(ordered_sessions, True)
+        stop_sessions(ordered_sessions_stop, True)
         shutdown_system(hosts, timeout)
     elif command == "reboot":
         pre_reboot_commands(yaml_content)
         pre_shutdown_commands(yaml_content)
-        stop_sessions(ordered_sessions, True)
+        stop_sessions(ordered_sessions_stop, True)
         shutdown_system(hosts, timeout)
