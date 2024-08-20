@@ -531,6 +531,10 @@ class Session(object):
                 ret, stdout, stderr = self._ssh_client.send_cmd(
                     "{}".format(self._pre_condition), True
                 )
+                logger.debug("pre_condition: {}".format(self._pre_condition))
+                logger.debug("ret: {}".format(ret))
+                logger.debug("stdout: {}".format(stdout.getvalue()))
+                logger.debug("stderr: {}".format(stderr.getvalue()))
                 if not ret:
                     break
                 time.sleep(0.25)
