@@ -774,12 +774,6 @@ def main():
         default="/etc/ros/upstart_robot.yaml",
     )
     parser.add_argument(
-        "-n",
-        "--number",
-        help="the number to append to each session name within the config file. used for multi robot setups. Can also be used within sessions as a env_variable. this is used as a unique ros domain id",
-        default="",
-    )
-    parser.add_argument(
         "-s",
         "--sessions",
         required=False,
@@ -801,13 +795,19 @@ def main():
         default="INFO",
         help="logging level",
     )
+    parser.add_argument(
+        "--instance_id",
+        type=int,
+        help="an unique id used to prepend to each session name within the config file. used for multi-robot emulation. the instance_id is also exported to the env used within the sessions as well as to guarantee a unique ROS_DOMAIN_ID",
+        default=0,
+    )
 
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
     # parse arguments
     yaml_file = args.config
-    number = args.number
     command = args.command
+    instance_id = args.instance_id
 
     # set logging level
     logger.setLevel(level=args.logging_level)
@@ -887,10 +887,12 @@ def main():
     else:
         envs = None
 
-    # check if number was given by the user. This indicates the use of a multi robot setup. Therefore we export a unique ROS_DOMAIN_ID
-    if number != "":
-        envs.append(("NUMBER", number))
-        envs.append(("ROS_DOMAIN_ID", number))
+    # Check if 'instance_id' was given by the user.
+    # This indicates the a multi-instance setup, e.g. for multi-robot emulation.
+    # Therefore we export the INSTANCE_ID and use it for to guarantee a unique ROS_DOMAIN_ID
+    if instance_id != 0:
+        envs.append(("INSTANCE_ID", instance_id))
+        envs.append(("ROS_DOMAIN_ID", instance_id))
 
     # get sessions from yaml
     yaml_sessions = None
@@ -923,7 +925,7 @@ def main():
                     sessions.append(
                         Session(
                             SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_ssh_port()),
-                            number + key,
+                            str(instance_id) + "_" + key if instance_id != 0 else key,
                             yaml_sessions[key],
                             envs
                         )
@@ -932,7 +934,7 @@ def main():
                 sessions.append(
                     Session(
                         SSHClient(user=user, hostname=hosts[host].get_hostname(), port=hosts[host].get_ssh_port()),
-                        number + key,
+                        str(instance_id) + "_" + key if instance_id != 0 else key,
                         yaml_sessions[key],
                         envs
                     )
