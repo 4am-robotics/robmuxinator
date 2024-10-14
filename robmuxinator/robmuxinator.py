@@ -180,6 +180,9 @@ class SSHClient:
                 logger.debug(f"{cmd}")
                 if wait_for_exit_status:
                     returncode = stdout.channel.recv_exit_status()
+
+                stdout = stdout.read().decode()
+                stderr = stderr.read().decode()
             else:
                 logger.debug("  using local connection")
                 process = subprocess.Popen([cmd],
@@ -187,15 +190,14 @@ class SSHClient:
                                             stderr=subprocess.PIPE,
                                             shell=True,
                                             text=True)
-                stdout = process.stdout
-                stderr = process.stderr
 
                 if wait_for_exit_status:
-                    stdout_str, stderr_str = process.communicate()
-                    # wrap output in IO buffers so it is compatible with .readlines()
-                    stdout = io.StringIO(stdout_str)
-                    stderr = io.StringIO(stderr_str)
+                    stdout, stderr = process.communicate()
                     returncode = process.returncode
+                else:
+                    stdout = process.stdout.read()
+                    stderr = process.stderr.read()
+
             logger.debug(
                 "send_cmd: {}  took {} secs".format(
                     cmd, (datetime.now() - start).total_seconds()
@@ -235,13 +237,11 @@ class SSHClient:
         pid_session = None
 
         if not returncode:
-            pid_session = stdout.readlines()
-            pid_session = pid_session[0].rstrip("\n") if len(pid_session) > 0 else None
+            pid_session = stdout[0].rstrip("\n") if len(stdout) > 0 else None
             if pid_session:
                 cmd = "pgrep -P {}".format(pid_session)
                 returncode, stdout, stderr = self.send_cmd(cmd)
-                pid = stdout.readlines()
-                pid = pid[0].rstrip("\n") if len(pid) > 0 else None
+                pid = stdout[0].rstrip("\n") if len(stdout) > 0 else None
                 if not pid:
                     logger.error(f"  session {session_name}: could not get process pid for session pid")
             else:
@@ -533,8 +533,8 @@ class Session(object):
                 )
                 logger.debug("pre_condition: {}".format(self._pre_condition))
                 logger.debug("ret: {}".format(ret))
-                logger.debug("stdout: {}".format(stdout.getvalue()))
-                logger.debug("stderr: {}".format(stderr.getvalue()))
+                logger.debug("stdout: {}".format(stdout))
+                logger.debug("stderr: {}".format(stderr))
                 if not ret:
                     break
                 time.sleep(0.25)
