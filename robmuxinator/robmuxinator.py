@@ -237,11 +237,11 @@ class SSHClient:
         pid_session = None
 
         if not returncode:
-            pid_session = stdout[0].rstrip("\n") if len(stdout) > 0 else None
+            pid_session = stdout.rstrip("\n") if len(stdout) > 0 else None
             if pid_session:
                 cmd = "pgrep -P {}".format(pid_session)
                 returncode, stdout, stderr = self.send_cmd(cmd)
-                pid = stdout[0].rstrip("\n") if len(stdout) > 0 else None
+                pid = stdout.rstrip("\n") if len(stdout) > 0 else None
                 if not pid:
                     logger.error(f"  session {session_name}: could not get process pid for session pid")
             else:
