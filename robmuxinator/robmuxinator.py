@@ -622,7 +622,12 @@ def shutdown_system(hosts, timeout=60):
     logger.info("shutting down hosts:")
 
     # remove own host pc from list
-    hosts_c = {key: value for key, value in hosts.items() if value.get_hostname() != socket.gethostname()}
+    def is_own_host(host: Host) -> bool:
+        if host.get_hostname() in ["localhost", "127.0.0.1", socket.gethostname()]:
+            return True
+        return False
+
+    hosts_c = {key: value for key, value in hosts.items() if not is_own_host(value)}
     if hosts_c:
         # concurrently shutdown all other hosts
         with ThreadPoolExecutor(max_workers=len(hosts_c)) as executor:
@@ -642,7 +647,7 @@ def shutdown_system(hosts, timeout=60):
     # shutdown own host
     host = None
     for value in hosts.values():
-        if value.get_hostname() == socket.gethostname():
+        if is_own_host(value):
             host = value
     if host:
         host.shutdown(timeout=timeout)
