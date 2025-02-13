@@ -723,7 +723,7 @@ def pre_shutdown_commands(yaml_content):
             process = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdio, stderr = process.communicate()
-            if process.returncode == 0:
+            if process.returncode in [0, 1, 2]:
                 logger.info("successfully executed command: {}".format(cmd))
                 logger.info("output: {}".format(stdio))
             else:
@@ -743,7 +743,7 @@ def pre_reboot_commands(yaml_content):
             process = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdio, stderr = process.communicate()
-            if process.returncode == 0:
+            if process.returncode in [0, 1, 2]:
                 logger.info("successfully executed command: {}".format(cmd))
                 logger.info("output: {}".format(stdio))
             else:
