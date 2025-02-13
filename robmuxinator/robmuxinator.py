@@ -713,7 +713,7 @@ def stop_sessions(sessions, force=False):
         )
     )
 
-def pre_shutdown_commands(yaml_content):
+def pre_shutdown_commands(yaml_content, force=False):
     logger.info("execute pre shutdown commands")
     if "pre-shutdown-commands" in yaml_content:
         for cmd in yaml_content["pre-shutdown-commands"]:
@@ -729,11 +729,12 @@ def pre_shutdown_commands(yaml_content):
             else:
                 logger.error("failed to execute command: {}".format(cmd))
                 logger.error("error: {}".format(stderr))
-                sys.exit(1)
+                if not force:
+                    sys.exit(1)
     else:
         logger.info("no pre-shutdown-commands defined")
 
-def pre_reboot_commands(yaml_content):
+def pre_reboot_commands(yaml_content, force=False):
     logger.info("execute pre reboot commands")
     if "pre-reboot-commands" in yaml_content:
         for cmd in yaml_content["pre-reboot-commands"]:
@@ -749,7 +750,8 @@ def pre_reboot_commands(yaml_content):
             else:
                 logger.error("failed to execute command: {}".format(cmd))
                 logger.error("error: {}".format(stderr))
-                sys.exit(1)
+                if not force:
+                    sys.exit(1)
     else:
         logger.info("no pre-reboot-commands defined")
 
@@ -971,11 +973,11 @@ def main():
             "restart took {} secs".format((datetime.now() - start).total_seconds())
         )
     elif command == "shutdown":
-        pre_shutdown_commands(yaml_content)
+        pre_shutdown_commands(yaml_content, args.force)
         stop_sessions(ordered_sessions_stop, True)
         shutdown_system(hosts, timeout)
     elif command == "reboot":
-        pre_reboot_commands(yaml_content)
-        pre_shutdown_commands(yaml_content)
+        pre_reboot_commands(yaml_content, args.force)
+        pre_shutdown_commands(yaml_content, args.force)
         stop_sessions(ordered_sessions_stop, True)
         shutdown_system(hosts, timeout)
