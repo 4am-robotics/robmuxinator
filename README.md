@@ -114,7 +114,7 @@ sessions:
 - `command`: Choose one of the available commands (start, stop, restart, shutdown, reboot).
 - `-c` or `--config`: Specify the path to the YAML configuration file that defines the hosts, sessions, and other settings. The default configuration file path is "/etc/ros/upstart_robot.yaml."
 - `-s` or `--sessions`: Optionally, specify which sessions should be started or stopped. You can provide multiple session names as arguments.
-- `-f` or `--force`: Use this flag to force the closure of sessions, even if they are locked.
+- `-f` or `--force`: Use this flag on `stop` to close sessions that are locked. Use this flag on `shutdown` or `reboot` to ignore errors and continue shutting down or rebooting.
 - `-l <L>` or `--logging_level <L>`: Use this flag to set the logging level, ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 - `--instance_id <N>`: An unique id used to prepend to each session name and used within multi-robot setups.
 
